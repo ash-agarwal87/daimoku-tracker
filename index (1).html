@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🪷 Daily Daimoku Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Raleway:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet" />
+  <!-- React 18 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Chart.js — stable UMD, no extra deps needed -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin></script>
+  <!-- Babel standalone — transpiles JSX in-browser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js" crossorigin></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #080614; font-family: 'Raleway', sans-serif; color: #EDE8F5; min-height: 100vh; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ─────────────────────────────────────────────────────────────────
+    //  ⚙️  PASTE YOUR APPS SCRIPT WEB APP URL BELOW
+    // ─────────────────────────────────────────────────────────────────
+    const API_URL = "https://script.google.com/macros/s/AKfycbwmyeqENA9uC8xO_HvvtWdYBkPLiOw3lWa7Qg1ckt-VdjEd-ACn_uEHfmzSGCy7dDORGg/exec";
+    // ─────────────────────────────────────────────────────────────────
+
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ── Constants ────────────────────────────────────────────────────
+    const DAILY_TARGET = 60;
+    const IKEDA_QUOTE  = "Each of us has within us a sun — a luminous, inextinguishable life force. When you chant, you are not calling upon something outside yourself. You are awakening what has always been there.";
+    const PALETTE      = ["#E8B84B","#C97D3A","#9B6CC4","#5E9BBF","#E06B75","#5BAD8F","#D4795C","#7B8BD4","#B07DB8","#4BADB8"];
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    const todayStr    = () => new Date().toISOString().split("T")[0];
+    const monthLabel  = (y, m) => new Date(y, m).toLocaleString("default", { month:"long", year:"numeric" });
+    const daysElapsed = (y, m) => {
+      const n = new Date();
+      return (n.getFullYear()===y && n.getMonth()===m) ? n.getDate() : new Date(y,m+1,0).getDate();
+    };
+    const pct         = (a, b) => b===0 ? 0 : Math.round((a/b)*100);
+    const initials    = n => n.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
+    const fmtDate     = ds => { const [y,m,d]=ds.split("-"); return `${d}/${m}/${y}`; };
+    const statusColor = (a, t) => { const r=pct(a,t); return r>=80?"#5BAD8F":r>=50?"#E8B84B":"#E06B75"; };
+    const statusLabel = (a, t) => { const r=pct(a,t); return r>=80?"✅ On Track":r>=50?"⚡ Catching Up":"🔴 Needs Push"; };
+
+    // ── API ───────────────────────────────────────────────────────────
+    const api = {
+      async getData() {
+        const r = await fetch(`${API_URL}?action=getData`, { redirect:"follow" });
+        return r.json();
+      },
+      async addEntry(entry) {
+        const r = await fetch(
+          `${API_URL}?action=addEntry&data=${encodeURIComponent(JSON.stringify(entry))}`,
+          { redirect:"follow" }
+        );
+        return r.json();
+      },
+      async saveNames(names) {
+        const r = await fetch(
+          `${API_URL}?action=saveNames&data=${encodeURIComponent(JSON.stringify({names}))}`,
+          { redirect:"follow" }
+        );
+        return r.json();
+      },
+      async getCampaignDates() {
+        const r = await fetch(`${API_URL}?action=getCampaignDates`, { redirect:"follow" });
+        return r.json();
+      },
+      async setCampaignDate(label, startDate, pin) {
+        const r = await fetch(
+          `${API_URL}?action=setCampaignDate&data=${encodeURIComponent(JSON.stringify({label,startDate,pin}))}`,
+          { redirect:"follow" }
+        );
+        return r.json();
+      }
+    };
+
+    // ═════════════════════════════════════════════════════════════════
+    //  Chart.js Components
+    // ═════════════════════════════════════════════════════════════════
+
+    // Daily bar chart — one bar per day, reference line at 60
+    function DailyChart({ data }) {
+      const canvasRef = useRef(null);
+      const chartRef  = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current || !data.length) return;
+        if (chartRef.current) chartRef.current.destroy();
+
+        const ctx = canvasRef.current.getContext("2d");
+        chartRef.current = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: data.map(d => d.day),
+            datasets: [
+              {
+                label: "Chanted",
+                data: data.map(d => d.mins),
+                backgroundColor: data.map(d =>
+                  d.mins >= DAILY_TARGET ? "#5BAD8F" : d.mins > 0 ? "#E8B84B" : "rgba(255,255,255,0.07)"
+                ),
+                borderRadius: 4,
+                maxBarThickness: 36,
+              },
+              {
+                label: "60 min target",
+                data: data.map(() => DAILY_TARGET),
+                type: "line",
+                borderColor: "rgba(232,184,75,0.5)",
+                borderWidth: 1.5,
+                borderDash: [5, 4],
+                pointRadius: 0,
+                fill: false,
+                tension: 0,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: "rgba(8,6,20,0.95)",
+                titleColor: "rgba(232,184,75,0.8)",
+                bodyColor: "#EDE8F5",
+                borderColor: "rgba(232,184,75,0.3)",
+                borderWidth: 1,
+                callbacks: {
+                  label: ctx => `${ctx.dataset.label}: ${ctx.raw} mins`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: "rgba(255,255,255,0.06)" },
+                ticks: { color: "rgba(237,232,245,0.4)", font: { size: 10 } }
+              },
+              y: {
+                grid: { color: "rgba(255,255,255,0.06)" },
+                ticks: { color: "rgba(237,232,245,0.4)", font: { size: 10 } },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+        return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+      }, [data]);
+
+      return (
+        <div style={{ position:"relative", width:"100%", height:190 }}>
+          <canvas ref={canvasRef} />
+        </div>
+      );
+    }
+
+    // Group overview — grouped bars: target (ghost) + chanted (coloured) per person
+    function GroupChart({ data, nameIndex }) {
+      const canvasRef = useRef(null);
+      const chartRef  = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current || !data.length) return;
+        if (chartRef.current) chartRef.current.destroy();
+
+        const ctx = canvasRef.current.getContext("2d");
+        chartRef.current = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: data.map(d => d.shortName),
+            datasets: [
+              {
+                label: "Target",
+                data: data.map(d => d.target),
+                backgroundColor: "rgba(232,184,75,0.15)",
+                borderRadius: 4,
+                maxBarThickness: 40,
+              },
+              {
+                label: "Chanted",
+                data: data.map(d => d.total),
+                backgroundColor: data.map(d => PALETTE[nameIndex(d.fullName) % PALETTE.length] + "DD"),
+                borderRadius: 4,
+                maxBarThickness: 40,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                labels: { color: "rgba(237,232,245,0.5)", font: { size: 11 }, boxWidth: 12 }
+              },
+              tooltip: {
+                backgroundColor: "rgba(8,6,20,0.95)",
+                titleColor: "rgba(232,184,75,0.8)",
+                bodyColor: "#EDE8F5",
+                borderColor: "rgba(232,184,75,0.3)",
+                borderWidth: 1,
+                callbacks: {
+                  title: items => data[items[0].dataIndex].fullName,
+                  label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} mins`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: "rgba(255,255,255,0.05)" },
+                ticks: { color: "rgba(237,232,245,0.5)", font: { size: 11 } }
+              },
+              y: {
+                grid: { color: "rgba(255,255,255,0.05)" },
+                ticks: { color: "rgba(237,232,245,0.5)", font: { size: 10 } },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+        return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+      }, [data]);
+
+      return (
+        <div style={{ position:"relative", width:"100%", height:260 }}>
+          <canvas ref={canvasRef} />
+        </div>
+      );
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    //  CSS
+    // ═════════════════════════════════════════════════════════════════
+    const CSS = `
+      .app{min-height:100vh;padding-bottom:70px;
+        background:radial-gradient(ellipse at 15% 0%,rgba(120,60,220,.22) 0%,transparent 52%),
+                   radial-gradient(ellipse at 85% 90%,rgba(232,184,75,.13) 0%,transparent 52%),#080614;}
+      .hdr{text-align:center;padding:40px 20px 0;}
+      .lotus-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;}
+      .lotus{font-size:20px;animation:glow 3s ease-in-out infinite;display:inline-block;}
+      .lotus:nth-child(2){font-size:30px;animation-delay:.5s;}
+      .lotus:nth-child(3){font-size:20px;animation-delay:1s;}
+      @keyframes glow{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.1)}}
+      h1{font-family:'Cinzel',serif;font-size:clamp(20px,4.5vw,34px);font-weight:700;letter-spacing:.1em;margin-bottom:5px;
+        background:linear-gradient(135deg,#F5D47A 0%,#E8B84B 50%,#C97D3A 100%);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+      .sub{font-size:10px;letter-spacing:.35em;color:rgba(232,184,75,.55);text-transform:uppercase;margin-bottom:26px;}
+      .quote-box{max-width:660px;margin:0 auto 30px;padding:18px 28px;
+        background:linear-gradient(135deg,rgba(232,184,75,.07),rgba(120,60,220,.07));
+        border:1px solid rgba(232,184,75,.22);border-radius:12px;position:relative;overflow:hidden;}
+      .quote-box::before{content:'❝';position:absolute;top:6px;left:12px;font-size:38px;
+        color:rgba(232,184,75,.13);font-family:Georgia,serif;line-height:1;}
+      .qt{font-style:italic;font-size:13px;line-height:1.82;color:rgba(237,232,245,.82);font-weight:300;}
+      .qa{margin-top:9px;font-size:10px;color:#E8B84B;letter-spacing:.2em;text-transform:uppercase;}
+      .screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;}
+      .spin{font-size:36px;animation:spin 2s linear infinite;display:inline-block;}
+      @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+      .screen-title{font-family:'Cinzel',serif;font-size:18px;color:#E8B84B;letter-spacing:.1em;}
+      .screen-sub{font-size:13px;color:rgba(237,232,245,.5);text-align:center;max-width:400px;line-height:1.7;}
+      .err-box{background:rgba(224,107,117,.1);border:1px solid rgba(224,107,117,.35);border-radius:12px;
+        padding:16px 22px;max-width:480px;width:100%;font-size:13px;color:#E06B75;line-height:1.7;text-align:center;}
+      .retry-btn{padding:10px 24px;background:rgba(232,184,75,.15);border:1px solid rgba(232,184,75,.4);
+        border-radius:10px;color:#E8B84B;font-family:'Raleway',sans-serif;font-size:12px;
+        font-weight:600;cursor:pointer;transition:all .18s;}
+      .retry-btn:hover{background:rgba(232,184,75,.25);}
+      .not-conf{background:rgba(94,155,191,.1);border:1px solid rgba(94,155,191,.35);border-radius:12px;
+        padding:20px 26px;max-width:500px;width:100%;font-size:13px;color:rgba(237,232,245,.75);line-height:1.9;}
+      .not-conf code{background:rgba(255,255,255,.08);border-radius:4px;padding:2px 6px;font-family:monospace;font-size:12px;color:#F5D47A;}
+      .refresh-strip{display:flex;align-items:center;justify-content:space-between;
+        max-width:800px;margin:0 auto 10px;padding:0 16px;}
+      .last-upd{font-size:10px;color:rgba(237,232,245,.3);}
+      .refresh-btn{background:none;border:1px solid rgba(232,184,75,.2);border-radius:8px;
+        color:rgba(232,184,75,.6);font-size:11px;padding:5px 12px;cursor:pointer;
+        font-family:'Raleway',sans-serif;transition:all .18s;display:flex;align-items:center;gap:5px;}
+      .refresh-btn:hover{border-color:rgba(232,184,75,.5);color:#E8B84B;}
+      .ricon{display:inline-block;transition:transform .3s;}
+      .refresh-btn.spinning .ricon{animation:spin .8s linear infinite;}
+      .tabs{display:flex;justify-content:center;gap:6px;margin-bottom:26px;padding:0 16px;flex-wrap:wrap;}
+      .tab{padding:8px 22px;border-radius:30px;border:1px solid rgba(232,184,75,.22);
+        background:transparent;color:rgba(237,232,245,.5);font-family:'Raleway',sans-serif;
+        font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
+      .tab:hover{color:#E8B84B;border-color:rgba(232,184,75,.45);}
+      .tab.on{background:linear-gradient(135deg,rgba(232,184,75,.18),rgba(120,60,220,.12));
+        border-color:#E8B84B;color:#F5D47A;font-weight:600;}
+      .wrap{max-width:800px;margin:0 auto;padding:0 16px 60px;}
+      .card{background:rgba(255,255,255,.035);border:1px solid rgba(232,184,75,.18);
+        border-radius:18px;padding:28px;backdrop-filter:blur(12px);box-shadow:0 8px 48px rgba(0,0,0,.4);}
+      .card+.card{margin-top:16px;}
+      .sec{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.24em;color:#E8B84B;
+        text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+      .sec::after{content:'';flex:1;height:1px;background:linear-gradient(to right,rgba(232,184,75,.25),transparent);}
+      .fg{display:flex;flex-direction:column;gap:18px;}
+      .fl label{display:block;font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+        color:rgba(232,184,75,.7);margin-bottom:7px;font-weight:600;}
+      .fi{width:100%;padding:12px 15px;background:rgba(255,255,255,.05);
+        border:1px solid rgba(232,184,75,.18);border-radius:10px;color:#EDE8F5;
+        font-family:'Raleway',sans-serif;font-size:14px;outline:none;
+        transition:border-color .2s,box-shadow .2s;appearance:none;-webkit-appearance:none;}
+      select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23E8B84B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat:no-repeat;background-position:right 14px center;background-color:rgba(255,255,255,.05);padding-right:36px;}
+      select.fi option{background:#1a1230;color:#EDE8F5;}
+      .fi:focus{border-color:rgba(232,184,75,.55);box-shadow:0 0 0 3px rgba(232,184,75,.1);}
+      .fi:disabled{opacity:.5;cursor:not-allowed;}
+      .err{color:#E06B75;font-size:11px;margin-top:5px;}
+      .sbtn{width:100%;padding:14px;background:linear-gradient(135deg,#E8B84B,#C97D3A);border:none;
+        border-radius:12px;font-family:'Cinzel',serif;font-size:13px;letter-spacing:.18em;
+        color:#080614;font-weight:700;cursor:pointer;transition:transform .18s,box-shadow .18s,opacity .18s;
+        text-transform:uppercase;margin-top:4px;}
+      .sbtn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(232,184,75,.35);}
+      .sbtn:disabled{opacity:.5;cursor:not-allowed;}
+      .toast{display:flex;align-items:center;gap:10px;border-radius:10px;padding:13px 17px;
+        font-size:13px;animation:fadeIn .3s ease;margin-top:14px;}
+      .toast.success{background:rgba(91,173,143,.12);border:1px solid rgba(91,173,143,.35);color:#5BAD8F;}
+      .toast.error{background:rgba(224,107,117,.1);border:1px solid rgba(224,107,117,.3);color:#E06B75;}
+      @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+      .dctrl{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px;}
+      .mnav{display:flex;align-items:center;gap:10px;}
+      .navbtn{background:rgba(255,255,255,.06);border:1px solid rgba(232,184,75,.2);border-radius:8px;
+        color:#E8B84B;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;
+        justify-content:center;font-size:18px;transition:all .18s;line-height:1;background:none;}
+      .navbtn:hover{background:rgba(232,184,75,.14);border-color:rgba(232,184,75,.5);}
+      .navbtn:disabled{opacity:.3;cursor:default;}
+      .mlbl{font-family:'Cinzel',serif;font-size:14px;color:#F5D47A;letter-spacing:.1em;min-width:180px;text-align:center;}
+      .vtog{display:flex;gap:4px;background:rgba(0,0,0,.3);border:1px solid rgba(232,184,75,.15);border-radius:10px;padding:3px;}
+      .vtbtn{padding:6px 14px;border-radius:7px;border:none;background:transparent;
+        color:rgba(237,232,245,.5);font-family:'Raleway',sans-serif;font-size:11px;
+        letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .18s;}
+      .vtbtn.on{background:linear-gradient(135deg,rgba(232,184,75,.2),rgba(120,60,220,.15));color:#F5D47A;font-weight:600;}
+      .sstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-bottom:22px;}
+      .scard{background:rgba(255,255,255,.04);border:1px solid rgba(232,184,75,.13);border-radius:12px;padding:14px 12px;text-align:center;}
+      .sval{font-family:'Cinzel',serif;font-size:22px;font-weight:700;color:#E8B84B;margin-bottom:4px;}
+      .slbl{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(237,232,245,.5);}
+      .pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;}
+      .pc{border-radius:14px;padding:18px 20px;cursor:pointer;
+        border:1px solid rgba(232,184,75,.1);background:rgba(255,255,255,.03);
+        transition:background .2s,border-color .2s,transform .2s;}
+      .pc:hover{background:rgba(255,255,255,.055);border-color:rgba(232,184,75,.28);transform:translateY(-2px);}
+      .pc.exp{border-color:rgba(232,184,75,.42);background:rgba(232,184,75,.055);grid-column:1/-1;transform:none;}
+      .pctop{display:flex;align-items:center;gap:14px;}
+      .av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;
+        justify-content:center;font-family:'Cinzel',serif;font-weight:700;font-size:12px;color:#080614;flex-shrink:0;}
+      .pinfo{flex:1;min-width:0;}
+      .pname{font-size:14px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .pmins{font-size:11px;color:rgba(237,232,245,.45);line-height:1.6;}
+      .pbadge{text-align:right;flex-shrink:0;}
+      .pbadge-pct{font-family:'Cinzel',serif;font-size:19px;font-weight:700;}
+      .pbadge-lbl{font-size:9px;color:rgba(237,232,245,.35);letter-spacing:.05em;margin-top:2px;}
+      .pbar{height:5px;background:rgba(255,255,255,.08);border-radius:4px;margin-top:13px;overflow:hidden;}
+      .pfill{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.4,0,.2,1);}
+      .detail{margin-top:16px;padding-top:16px;border-top:1px solid rgba(232,184,75,.12);}
+      .dtabs{display:flex;gap:6px;margin-bottom:16px;}
+      .dtab{padding:5px 14px;border-radius:20px;border:1px solid rgba(232,184,75,.18);
+        background:transparent;color:rgba(237,232,245,.45);font-family:'Raleway',sans-serif;
+        font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:all .18s;}
+      .dtab.on{background:rgba(232,184,75,.14);border-color:rgba(232,184,75,.4);color:#F5D47A;font-weight:600;}
+      .chart-lbl{font-size:10px;color:rgba(232,184,75,.55);letter-spacing:.18em;text-transform:uppercase;margin-bottom:12px;}
+      .chart-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
+        font-size:10px;color:rgba(237,232,245,.4);margin-top:10px;}
+      .ldot{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle;}
+      .etbl{width:100%;border-collapse:collapse;font-size:12px;}
+      .etbl th{text-align:left;padding:7px 10px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+        color:rgba(232,184,75,.5);border-bottom:1px solid rgba(232,184,75,.12);}
+      .etbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:rgba(237,232,245,.75);}
+      .etbl tr:last-child td{border-bottom:none;}
+      .hit{color:#5BAD8F;font-weight:600;} .miss{color:#E06B75;}
+      .empty{text-align:center;padding:36px 0;color:rgba(237,232,245,.25);font-size:13px;font-style:italic;}
+      .nlist{display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
+      .ni{display:flex;align-items:center;justify-content:space-between;padding:10px 15px;
+        background:rgba(255,255,255,.04);border:1px solid rgba(232,184,75,.1);border-radius:10px;}
+      .ni span{font-size:13px;display:flex;align-items:center;gap:10px;}
+      .rbtn{background:none;border:none;color:rgba(224,107,117,.4);cursor:pointer;
+        font-size:16px;padding:2px 7px;border-radius:6px;transition:all .18s;}
+      .rbtn:hover{color:#E06B75;background:rgba(224,107,117,.1);}
+      .arow{display:flex;gap:8px;}
+      .arow input{flex:1;padding:11px 14px;background:rgba(255,255,255,.05);
+        border:1px solid rgba(232,184,75,.18);border-radius:10px;color:#EDE8F5;
+        font-family:'Raleway',sans-serif;font-size:13px;outline:none;transition:border-color .2s;}
+      .arow input:focus{border-color:rgba(232,184,75,.5);}
+      .abtn{padding:11px 18px;background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.32);
+        border-radius:10px;color:#E8B84B;font-family:'Raleway',sans-serif;font-size:12px;
+        font-weight:600;cursor:pointer;transition:all .18s;white-space:nowrap;}
+      .abtn:hover{background:rgba(232,184,75,.2);}
+      .save-overlay{position:fixed;bottom:20px;right:20px;background:rgba(8,6,20,.92);
+        border:1px solid rgba(232,184,75,.3);border-radius:10px;padding:10px 16px;
+        font-size:12px;color:#E8B84B;display:flex;align-items:center;gap:8px;z-index:1000;
+        animation:fadeIn .2s ease;}
+      ::-webkit-scrollbar{width:4px;}
+      ::-webkit-scrollbar-track{background:transparent;}
+      ::-webkit-scrollbar-thumb{background:rgba(232,184,75,.28);border-radius:4px;}
+    `;
+
+    // ═════════════════════════════════════════════════════════════════
+    //  Screens
+    // ═════════════════════════════════════════════════════════════════
+    const NotConfigured = () => (
+      <div className="screen">
+        <span style={{fontSize:40}}>🪷</span>
+        <div className="screen-title">Setup Required</div>
+        <div className="not-conf">
+          <strong style={{color:"#E8B84B"}}>One step needed before this works:</strong><br/><br/>
+          1. Deploy <code>api.gs</code> as a Web App in Google Apps Script<br/>
+          2. Copy the Web App URL<br/>
+          3. Open <code>index.html</code>, replace <code>YOUR_APPS_SCRIPT_WEB_APP_URL_HERE</code><br/>
+          4. Re-upload to GitHub<br/><br/>
+          <span style={{color:"rgba(237,232,245,.4)",fontSize:11}}>See the Setup Guide for step-by-step instructions.</span>
+        </div>
+      </div>
+    );
+
+    // ═════════════════════════════════════════════════════════════════
+    //  Main App
+    // ═════════════════════════════════════════════════════════════════
+    function DaimokuTracker() {
+      const now = new Date();
+      const [appState,       setAppState]       = useState("loading");
+      const [names,          setNames]          = useState([]);
+      const [entries,        setEntries]        = useState([]);
+      const [lastUpdated,    setLastUpdated]    = useState(null);
+      const [tab,            setTab]            = useState("track");
+      const [form,           setForm]           = useState({name:"",date:todayStr(),count:""});
+      const [errors,         setErrors]         = useState({});
+      const [toast,          setToast]          = useState(null);
+      const [submitting,     setSubmitting]     = useState(false);
+      const [saving,         setSaving]         = useState(false);
+      const [refreshing,     setRefreshing]     = useState(false);
+      const [newName,        setNewName]        = useState("");
+      const [viewYear,       setViewYear]       = useState(now.getFullYear());
+      const [viewMonth,      setViewMonth]      = useState(now.getMonth());
+      const [viewMode,       setViewMode]       = useState("mtd");
+      const [expandedPerson, setExpandedPerson] = useState(null);
+      const [detailTab,      setDetailTab]      = useState("chart");
+      // Admin / campaign state
+      const [adminUnlocked,  setAdminUnlocked]  = useState(false);
+      const [adminPin,       setAdminPin]       = useState("");
+      const [pinError,       setPinError]       = useState(false);
+      const [campaigns,      setCampaigns]      = useState([]);
+      const [campLabel,      setCampLabel]      = useState("");
+      const [campDate,       setCampDate]       = useState("");
+      const [campSaving,     setCampSaving]     = useState(false);
+      const [campMsg,        setCampMsg]        = useState(null);
+      const toastRef = useRef(null);
+
+      const showToast = (msg, type="success") => {
+        setToast({msg,type});
+        clearTimeout(toastRef.current);
+        toastRef.current = setTimeout(()=>setToast(null), 4000);
+      };
+
+      const loadData = useCallback(async (isRefresh=false) => {
+        if (isRefresh) setRefreshing(true); else setAppState("loading");
+        try {
+          const d = await api.getData();
+          if (!d.ok) throw new Error(d.error||"API returned error");
+          setNames(d.names||[]);
+          setEntries(d.entries||[]);
+          setLastUpdated(new Date());
+          setAppState("ready");
+        } catch(e) {
+          if (!isRefresh) setAppState("error");
+          else showToast("Refresh failed — "+e.message, "error");
+        } finally {
+          setRefreshing(false);
+        }
+      }, []);
+
+      useEffect(()=>{
+        if (API_URL==="YOUR_APPS_SCRIPT_WEB_APP_URL_HERE") { setAppState("not-configured"); return; }
+        loadData();
+      },[]);
+
+      const loadCampaigns = useCallback(async () => {
+        try {
+          const d = await api.getCampaignDates();
+          if (d.ok) setCampaigns(d.campaigns||[]);
+        } catch(e) {}
+      }, []);
+
+      useEffect(() => { if (adminUnlocked) loadCampaigns(); }, [adminUnlocked]);
+
+      const handleAdminUnlock = () => {
+        // PIN is verified server-side — just try a dummy call to check
+        setPinError(false);
+        // We'll verify on save; just unlock UI optimistically
+        if (adminPin.trim() === "") { setPinError(true); return; }
+        setAdminUnlocked(true);
+        loadCampaigns();
+      };
+
+      const handleSetCampaignDate = async () => {
+        if (!campLabel || !campDate) { setCampMsg({msg:"Select month and date",type:"error"}); return; }
+        setCampSaving(true); setCampMsg(null);
+        try {
+          const r = await api.setCampaignDate(campLabel, campDate, adminPin);
+          if (!r.ok) throw new Error(r.error||"Failed");
+          setCampMsg({msg:"✅ Campaign start date updated: "+campLabel+" → "+campDate, type:"success"});
+          loadCampaigns();
+          setCampDate("");
+        } catch(err) {
+          if (err.message.includes("PIN")) { setAdminUnlocked(false); setPinError(true); }
+          setCampMsg({msg:"Error: "+err.message, type:"error"});
+        } finally { setCampSaving(false); }
+      };
+
+      // Generate next 12 month labels
+      const monthOptions = Array.from({length:12},(_,i) => {
+        const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+        return d.toLocaleString("default",{month:"long",year:"numeric"});
+      });
+
+      const handleSubmit = async () => {
+        const e={};
+        if (!form.name) e.name="Please select your name";
+        if (!form.date) e.date="Please select a date";
+        const n=Number(form.count);
+        if (!form.count||!Number.isInteger(n)||n<=0) e.count="Enter a whole number greater than 0";
+        if (Object.keys(e).length){setErrors(e);return;}
+        setSubmitting(true);
+        try {
+          const r=await api.addEntry({name:form.name,date:form.date,count:parseInt(form.count)});
+          if (!r.ok) throw new Error(r.error||"Save failed");
+          setEntries(prev=>[...prev,{id:r.id||Date.now(),name:form.name,date:form.date,count:parseInt(form.count)}]);
+          setForm({name:"",date:todayStr(),count:""});
+          setErrors({});
+          showToast("✨ Beautifully done. Your daimoku has been recorded.");
+        } catch(err){ showToast("Could not save — "+err.message,"error"); }
+        finally { setSubmitting(false); }
+      };
+
+      const handleSaveNames = async newNames => {
+        setNames(newNames); setSaving(true);
+        try {
+          const r=await api.saveNames(newNames);
+          if (!r.ok) throw new Error(r.error||"Sync failed");
+        } catch(err){ showToast("Names updated locally but failed to sync — "+err.message,"error"); }
+        finally { setSaving(false); }
+      };
+
+      // Dashboard calculations
+      const getPersonStats = useCallback((name,idx)=>{
+        const color=PALETTE[idx%PALETTE.length];
+        let mine,target,elapsed;
+        if (viewMode==="mtd"){
+          mine=entries.filter(e=>{const d=new Date(e.date);return e.name===name&&d.getFullYear()===viewYear&&d.getMonth()===viewMonth;});
+          elapsed=daysElapsed(viewYear,viewMonth); target=elapsed*DAILY_TARGET;
+        } else {
+          mine=entries.filter(e=>e.name===name);
+          elapsed=daysElapsed(now.getFullYear(),now.getMonth()); target=elapsed*DAILY_TARGET;
+        }
+        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine};
+      },[entries,viewYear,viewMonth,viewMode]);
+
+      const allPersonData=names.map((n,i)=>getPersonStats(n,i));
+      const totalMins=allPersonData.reduce((s,p)=>s+p.total,0);
+      const totalTarget=allPersonData.reduce((s,p)=>s+p.target,0);
+      const onTrack=allPersonData.filter(p=>pct(p.total,p.target)>=80).length;
+      const elapsed=daysElapsed(viewYear,viewMonth);
+      const isCurrent=viewYear===now.getFullYear()&&viewMonth===now.getMonth();
+
+      const prevMonth=()=>{if(viewMonth===0){setViewYear(y=>y-1);setViewMonth(11);}else setViewMonth(m=>m-1);setExpandedPerson(null);};
+      const nextMonth=()=>{if(isCurrent)return;if(viewMonth===11){setViewYear(y=>y+1);setViewMonth(0);}else setViewMonth(m=>m+1);setExpandedPerson(null);};
+
+      const getDailyData=useCallback(pEntries=>{
+        if (viewMode==="alltime"){
+          const g={};pEntries.forEach(e=>{g[e.date]=(g[e.date]||0)+e.count;});
+          return Object.entries(g).sort(([a],[b])=>a.localeCompare(b)).map(([date,mins])=>({day:fmtDate(date),mins}));
+        }
+        const g={};pEntries.forEach(e=>{g[e.date]=(g[e.date]||0)+e.count;});
+        return Array.from({length:elapsed},(_,i)=>{
+          const d=new Date(viewYear,viewMonth,i+1).toISOString().split("T")[0];
+          return {day:i+1,mins:g[d]||0};
+        });
+      },[viewMode,viewYear,viewMonth,elapsed]);
+
+      const nameIndex=useCallback(n=>names.indexOf(n),[names]);
+      const groupChartData=allPersonData.map(p=>({shortName:p.name.split(" ")[0],fullName:p.name,total:p.total,target:p.target})).sort((a,b)=>b.total-a.total);
+
+      // Render guards
+      if (appState==="not-configured") return <NotConfigured />;
+      if (appState==="loading") return (
+        <div className="screen">
+          <span className="spin">🪷</span>
+          <div className="screen-title">Loading Daimoku Data</div>
+          <div className="screen-sub">Connecting to your Google Sheet…</div>
+        </div>
+      );
+      if (appState==="error") return (
+        <div className="screen">
+          <span style={{fontSize:36}}>⚠️</span>
+          <div className="screen-title">Could Not Connect</div>
+          <div className="err-box">Failed to reach the Apps Script API.<br/>Check that the Web App is deployed and the URL in index.html is correct.</div>
+          <button className="retry-btn" onClick={()=>loadData()}>↻ Retry</button>
+        </div>
+      );
+
+      return (
+        <>
+          <style>{CSS}</style>
+          <div className="app">
+            <div className="hdr">
+              <div className="lotus-row">
+                <span className="lotus">🪷</span><span className="lotus">🪷</span><span className="lotus">🪷</span>
+              </div>
+              <h1>Daily Daimoku Tracker</h1>
+              <p className="sub">Nam · Myoho · Renge · Kyo</p>
+              <div className="quote-box">
+                <p className="qt">{IKEDA_QUOTE}</p>
+                <p className="qa">— Daisaku Ikeda</p>
+              </div>
+            </div>
+
+            <div className="refresh-strip">
+              <span className="last-upd">{lastUpdated?`Last synced: ${lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`:""}</span>
+              <button className={`refresh-btn${refreshing?" spinning":""}`} onClick={()=>loadData(true)}>
+                <span className="ricon">↻</span> Refresh
+              </button>
+            </div>
+
+            <div className="tabs">
+              {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["admin","⚙️ Names"],["campaign","🗓️ Campaign"]].map(([k,l])=>(
+                <button key={k} className={`tab${tab===k?" on":""}`} onClick={()=>setTab(k)}>{l}</button>
+              ))}
+            </div>
+
+            <div className="wrap">
+
+              {/* ══ TRACK ══ */}
+              {tab==="track" && (
+                <div className="card">
+                  <div className="sec">Log Your Daimoku</div>
+                  <div className="fg">
+                    <div className="fl">
+                      <label>Your Name</label>
+                      <select className="fi" value={form.name} disabled={submitting} onChange={e=>setForm(f=>({...f,name:e.target.value}))}>
+                        <option value="">— Select —</option>
+                        {names.map(n=><option key={n} value={n}>{n}</option>)}
+                      </select>
+                      {errors.name&&<div className="err">⚠ {errors.name}</div>}
+                    </div>
+                    <div className="fl">
+                      <label>Date</label>
+                      <input className="fi" type="date" value={form.date} max={todayStr()} disabled={submitting} onChange={e=>setForm(f=>({...f,date:e.target.value}))} />
+                      {errors.date&&<div className="err">⚠ {errors.date}</div>}
+                    </div>
+                    <div className="fl">
+                      <label>Minutes Chanted</label>
+                      <input className="fi" type="number" min="1" step="1" placeholder="e.g. 30" value={form.count} disabled={submitting}
+                        onChange={e=>setForm(f=>({...f,count:e.target.value}))}
+                        onKeyDown={e=>e.key==="Enter"&&!submitting&&handleSubmit()} />
+                      {errors.count&&<div className="err">⚠ {errors.count}</div>}
+                    </div>
+                    <button className="sbtn" disabled={submitting} onClick={handleSubmit}>
+                      {submitting?"Saving… 🪷":"Submit Daimoku 🪷"}
+                    </button>
+                    {toast&&<div className={`toast ${toast.type}`}>{toast.msg}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* ══ DASHBOARD ══ */}
+              {tab==="dashboard" && (
+                <>
+                  <div className="dctrl">
+                    <div className="mnav">
+                      <button className="navbtn" onClick={prevMonth}>‹</button>
+                      <span className="mlbl">{viewMode==="alltime"?"All Time":monthLabel(viewYear,viewMonth)}</span>
+                      <button className="navbtn" onClick={nextMonth} disabled={isCurrent||viewMode==="alltime"}>›</button>
+                    </div>
+                    <div className="vtog">
+                      {[["mtd","MTD"],["alltime","All Time"]].map(([k,l])=>(
+                        <button key={k} className={`vtbtn${viewMode===k?" on":""}`} onClick={()=>{setViewMode(k);setExpandedPerson(null);}}>{l}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="sstrip">
+                    {[
+                      [totalMins.toLocaleString(),"Total Mins"],
+                      [pct(totalMins,totalTarget)+"%","Group Achievement",statusColor(totalMins,totalTarget)],
+                      [onTrack,"On Track (≥80%)","#5BAD8F"],
+                      ...(viewMode==="mtd"?[[elapsed,"Days Elapsed"]]:[]),
+                      [DAILY_TARGET,"Daily Target (mins)"],
+                    ].map(([val,lbl,col],i)=>(
+                      <div key={i} className="scard">
+                        <div className="sval" style={col?{color:col}:{}}>{val}</div>
+                        <div className="slbl">{lbl}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pcards">
+                    {allPersonData.map((p,idx)=>{
+                      const achievement=pct(p.total,p.target), sc=statusColor(p.total,p.target);
+                      const isExp=expandedPerson===p.name;
+                      const dailyData=isExp?getDailyData(p.entries):[];
+                      const logEntries=[...p.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+                      return (
+                        <div key={p.name} className={`pc${isExp?" exp":""}`}
+                          onClick={()=>{setExpandedPerson(isExp?null:p.name);setDetailTab("chart");}}>
+                          <div className="pctop">
+                            <div className="av" style={{background:p.color}}>{initials(p.name)}</div>
+                            <div className="pinfo">
+                              <div className="pname">{p.name}</div>
+                              <div className="pmins">{p.total.toLocaleString()} / {p.target.toLocaleString()} mins</div>
+                              <div className="pmins">{viewMode==="mtd"?`${elapsed} days × ${DAILY_TARGET} min target`:`All time · ${[...new Set(p.entries.map(e=>e.date))].length} logged days`}</div>
+                            </div>
+                            <div className="pbadge">
+                              <div className="pbadge-pct" style={{color:sc}}>{achievement}%</div>
+                              <div className="pbadge-lbl" style={{color:sc}}>{statusLabel(p.total,p.target)}</div>
+                            </div>
+                          </div>
+                          <div className="pbar">
+                            <div className="pfill" style={{width:`${Math.min(achievement,100)}%`,background:`linear-gradient(90deg,${sc}88,${sc})`}}/>
+                          </div>
+
+                          {isExp && (
+                            <div className="detail" onClick={e=>e.stopPropagation()}>
+                              <div className="dtabs">
+                                {[["chart","📈 Daily Chart"],["log","📋 Entry Log"]].map(([k,l])=>(
+                                  <button key={k} className={`dtab${detailTab===k?" on":""}`} onClick={()=>setDetailTab(k)}>{l}</button>
+                                ))}
+                              </div>
+
+                              {detailTab==="chart" && (
+                                dailyData.length>0 ? (
+                                  <>
+                                    <div className="chart-lbl">Minutes per day vs 60-min target</div>
+                                    <DailyChart data={dailyData} />
+                                    <div className="chart-legend">
+                                      <span><span className="ldot" style={{background:"#5BAD8F"}}/>Met target</span>
+                                      <span><span className="ldot" style={{background:"#E8B84B"}}/>Partial</span>
+                                      <span><span className="ldot" style={{background:"rgba(255,255,255,.12)"}}/>No entry</span>
+                                      <span style={{color:"rgba(232,184,75,.5)"}}>— 60 min line</span>
+                                    </div>
+                                  </>
+                                ) : <div className="empty">🪷 No data for this period</div>
+                              )}
+
+                              {detailTab==="log" && (
+                                logEntries.length>0 ? (
+                                  <table className="etbl">
+                                    <thead><tr><th>Date</th><th>Minutes</th><th>vs Target</th></tr></thead>
+                                    <tbody>
+                                      {logEntries.map(e=>(
+                                        <tr key={e.id}>
+                                          <td>{fmtDate(e.date)}</td><td>{e.count}</td>
+                                          <td className={e.count>=DAILY_TARGET?"hit":"miss"}>
+                                            {e.count>=DAILY_TARGET?`✓ +${e.count-DAILY_TARGET}`:`✗ −${DAILY_TARGET-e.count}`}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                ) : <div className="empty">🪷 No entries for this period</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {totalMins>0 && (
+                    <div className="card" style={{marginTop:18}}>
+                      <div className="sec">Group Overview — Chanted vs Target</div>
+                      <GroupChart data={groupChartData} nameIndex={nameIndex} />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ══ ADMIN ══ */}
+              {tab==="admin" && (
+                <div className="card">
+                  <div className="sec">Manage Names</div>
+                  <div className="nlist">
+                    {names.map((n,i)=>(
+                      <div key={n} className="ni">
+                        <span>
+                          <span style={{width:28,height:28,borderRadius:"50%",background:PALETTE[i%PALETTE.length],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#080614",fontFamily:"Cinzel,serif",flexShrink:0}}>{initials(n)}</span>
+                          {n}
+                        </span>
+                        <button className="rbtn" onClick={()=>handleSaveNames(names.filter(x=>x!==n))}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="arow">
+                    <input type="text" placeholder="Add a name…" value={newName} onChange={e=>setNewName(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"){const t=newName.trim();if(t&&!names.includes(t)){handleSaveNames([...names,t]);setNewName("");}}}} />
+                    <button className="abtn" onClick={()=>{const t=newName.trim();if(t&&!names.includes(t)){handleSaveNames([...names,t]);setNewName("");}}}>+ Add</button>
+                  </div>
+                  {toast&&<div className={`toast ${toast.type}`} style={{marginTop:14}}>{toast.msg}</div>}
+                </div>
+              )}
+
+              {/* ══ CAMPAIGN ADMIN ══ */}
+              {tab==="campaign" && (
+                <div className="card">
+                  <div className="sec">Campaign Start Date 🔒</div>
+
+                  {!adminUnlocked ? (
+                    /* PIN gate */
+                    <div style={{maxWidth:340,margin:"0 auto",textAlign:"center"}}>
+                      <div style={{fontSize:13,color:"rgba(237,232,245,.5)",marginBottom:20,lineHeight:1.7}}>
+                        This section is admin-only.<br/>Enter your PIN to continue.
+                      </div>
+                      <div className="fl" style={{marginBottom:14,textAlign:"left"}}>
+                        <label>Admin PIN</label>
+                        <input className="fi" type="password" placeholder="Enter PIN" value={adminPin}
+                          onChange={e=>{setAdminPin(e.target.value);setPinError(false);}}
+                          onKeyDown={e=>e.key==="Enter"&&handleAdminUnlock()}
+                          style={{letterSpacing:"0.3em",textAlign:"center"}} />
+                        {pinError&&<div className="err">⚠ Incorrect PIN</div>}
+                      </div>
+                      <button className="sbtn" onClick={handleAdminUnlock} style={{marginTop:0}}>Unlock 🔓</button>
+                    </div>
+                  ) : (
+                    /* Campaign date editor */
+                    <>
+                      <div style={{fontSize:12,color:"rgba(237,232,245,.4)",marginBottom:20,lineHeight:1.7}}>
+                        Set the start date for any campaign month. The dashboard calculates days elapsed and target minutes from this date.
+                      </div>
+
+                      <div className="fg" style={{maxWidth:420}}>
+                        <div className="fl">
+                          <label>Campaign Month</label>
+                          <select className="fi" value={campLabel} onChange={e=>setCampLabel(e.target.value)}>
+                            <option value="">— Select month —</option>
+                            {monthOptions.map(m=><option key={m} value={m}>{m}</option>)}
+                          </select>
+                        </div>
+                        <div className="fl">
+                          <label>Campaign Start Date</label>
+                          <input className="fi" type="date" value={campDate} onChange={e=>setCampDate(e.target.value)} />
+                        </div>
+                        <button className="sbtn" disabled={campSaving} onClick={handleSetCampaignDate} style={{marginTop:4}}>
+                          {campSaving?"Saving…":"Save Campaign Start Date"}
+                        </button>
+                        {campMsg&&<div className={`toast ${campMsg.type}`}>{campMsg.msg}</div>}
+                      </div>
+
+                      {campaigns.length>0&&(
+                        <>
+                          <div style={{height:1,background:"rgba(232,184,75,.12)",margin:"24px 0"}}/>
+                          <div className="sec">Current Campaign Dates</div>
+                          <table className="etbl">
+                            <thead><tr><th>Month</th><th>Start Date</th></tr></thead>
+                            <tbody>
+                              {campaigns.map(c=>(
+                                <tr key={c.label}>
+                                  <td>{c.label}</td>
+                                  <td style={{color:"#F5D47A"}}>{c.startDate ? new Date(c.startDate+"T00:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <div style={{marginTop:14}}>
+                            <button onClick={()=>{setAdminUnlocked(false);setAdminPin("");}} style={{background:"none",border:"1px solid rgba(224,107,117,.3)",borderRadius:8,color:"rgba(224,107,117,.6)",padding:"6px 14px",fontSize:11,cursor:"pointer",fontFamily:"Raleway,sans-serif"}}>
+                              🔒 Lock Admin
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+            </div>
+            {saving&&<div className="save-overlay"><span className="spin" style={{fontSize:14}}>🪷</span> Syncing…</div>}
+          </div>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<DaimokuTracker />);
+  </script>
+</body>
+</html>
