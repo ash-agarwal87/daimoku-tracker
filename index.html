@@ -575,7 +575,7 @@
         }
         const g={};pEntries.forEach(e=>{g[e.date]=(g[e.date]||0)+e.count;});
         return Array.from({length:elapsed},(_,i)=>{
-          const d=new Date(viewYear,viewMonth,i+1).toISOString().split("T")[0];
+          const d=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
           return {day:i+1,mins:g[d]||0};
         });
       },[viewMode,viewYear,viewMonth,elapsed]);
@@ -614,6 +614,30 @@
               <div className="quote-box">
                 <p className="qt">{IKEDA_QUOTE}</p>
                 <p className="qa">— Daisaku Ikeda</p>
+              </div>
+
+              {/* ── Intentions Banner — compact ── */}
+              <div style={{maxWidth:660,margin:"0 auto 22px",padding:"11px 18px",
+                background:"rgba(91,173,143,.07)",border:"1px solid rgba(91,173,143,.22)",
+                borderRadius:10,textAlign:"center"}}>
+                <div style={{fontSize:10,letterSpacing:".2em",color:"#5BAD8F",
+                  textTransform:"uppercase",marginBottom:7,fontFamily:"'Cinzel',serif"}}>
+                  🙏 Chanting For — April &amp; May Zadankai
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:"6px 12px"}}>
+                  {["🌟 20 members","💬 5 experiences","🛡️ Safe gathering",
+                    "🎙️ Seamless flow","🤝 4 new friends","🌍 World peace",
+                    "🌿 Nature","🕊️ An undefeated world"].map(t=>(
+                    <span key={t} style={{fontSize:11,color:"rgba(237,232,245,.6)",
+                      background:"rgba(255,255,255,.04)",borderRadius:20,
+                      padding:"3px 10px",border:"1px solid rgba(255,255,255,.07)"}}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <div style={{marginTop:8,fontSize:10,color:"rgba(91,173,143,.6)",fontStyle:"italic"}}>
+                  Every minute of Daimoku has a direction. Let it count. 🔥
+                </div>
               </div>
             </div>
 
