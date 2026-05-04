@@ -766,26 +766,7 @@ repaid in every living face.`;
                       {errors.date&&<div className="err">⚠ {errors.date}</div>}
                     </div>
                     <div className="fl">
-                      <label>Daily Challenge</label>
-                      <div style={{display:"flex",gap:10}}>
-                        {[60,45,30].map(c=>(
-                          <button key={c} disabled={submitting}
-                            onClick={()=>setForm(f=>({...f,challenge:c}))}
-                            style={{flex:1,padding:"11px",borderRadius:10,border:`1px solid ${form.challenge===c?"#E8B84B":"rgba(232,184,75,.2)"}`,
-                              background:form.challenge===c?"linear-gradient(135deg,rgba(232,184,75,.2),rgba(120,60,220,.12))":"rgba(255,255,255,.03)",
-                              color:form.challenge===c?"#F5D47A":"rgba(237,232,245,.45)",
-                              fontFamily:"'Cinzel',serif",fontSize:12,fontWeight:form.challenge===c?700:400,
-                              cursor:"pointer",transition:"all .2s",letterSpacing:".1em"}}>
-                            {c} min
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{fontSize:10,color:"rgba(237,232,245,.3)",marginTop:5,textAlign:"center"}}>
-                        60 min — core · 45 min — steady · 30 min — on the go
-                      </div>
-                    </div>
-                    <div className="fl">
-                      <label>Minutes Chanted Today</label>
+                      <label>Minutes Chanted</label>
                       <input className="fi" type="number" min="1" step="1" placeholder="e.g. 30" value={form.count} disabled={submitting}
                         onChange={e=>setForm(f=>({...f,count:e.target.value}))}
                         onKeyDown={e=>e.key==="Enter"&&!submitting&&handleSubmit()} />
