@@ -37,6 +37,25 @@
     const IKEDA_QUOTE  = "Each of us has within us a sun — a luminous, inextinguishable life force. When you chant, you are not calling upon something outside yourself. You are awakening what has always been there.";
     const PALETTE      = ["#E8B84B","#C97D3A","#9B6CC4","#5E9BBF","#E06B75","#5BAD8F","#D4795C","#7B8BD4","#B07DB8","#4BADB8"];
 
+    const DEBTS = [
+      {num:"I",  en:"All Living Beings",  icon:"🌍", color:"#E8B84B", glow:"rgba(232,184,75,0.18)",
+        reflection:"Everything in the universe is interdependent. Our very existence is sustained by countless people and forces we never see — the farmer, the rain, the stranger who held a door. A debt so vast it can never be fully named.",
+        chant:"As I chant, I send the vibration of the Mystic Law to every living being — seen and unseen — who holds my life up."},
+      {num:"II", en:"Father & Mother",    icon:"👨‍👩‍👦", color:"#C97D3A", glow:"rgba(201,125,58,0.18)",
+        reflection:"They brought us into this world and worked hard to raise us. The simplest debt — and perhaps the one we most take for granted. Before we could choose, someone chose us. Before we could ask, someone gave.",
+        chant:"As I chant, I honour what was given before I could even ask for it — and I vow to become someone worth that gift."},
+      {num:"III",en:"Sovereign & Country",icon:"🏛️", color:"#9B6CC4", glow:"rgba(155,108,196,0.18)",
+        reflection:"We live on this land, breathe this air, draw on its resources. There is a quiet debt in simply being here — in the roads we walk, the laws that protect us, the society that makes community possible.",
+        chant:"As I chant, I pray for righteous governance — and I commit to being a force for good within my own sphere."},
+      {num:"IV", en:"The Three Treasures",icon:"☸️", color:"#5BAD8F", glow:"rgba(91,173,143,0.18)",
+        reflection:"The Gohonzon, the Daishonin's teachings, and the Soka Gakkai — our community, right here. This debt is repaid not by ritual but by advancing kosen-rufu. Every dialogue, every time we support a fellow member — that counts.",
+        chant:"As I chant, I carry the torch forward — and I vow that through my life, the Law will reach someone new."},
+    ];
+    const GRATITUDE_POEM = `The one who saved me, may not always be found,
+So I tend to all who share this ground.
+The debt I owe to a single grace —
+repaid in every living face.`;
+
     // ── Helpers ──────────────────────────────────────────────────────
     const todayStr    = () => new Date().toISOString().split("T")[0];
     const monthLabel  = (y, m) => new Date(y, m).toLocaleString("default", { month:"long", year:"numeric" });
@@ -394,6 +413,54 @@
         font-size:12px;color:#E8B84B;display:flex;align-items:center;gap:8px;z-index:1000;
         animation:fadeIn .2s ease;}
       ::-webkit-scrollbar{width:4px;}
+      .gr-dq{margin-bottom:18px;padding:14px 18px;background:rgba(232,184,75,.06);
+        border:1px solid rgba(232,184,75,.18);border-left:3px solid #E8B84B;
+        border-radius:0 10px 10px 0;font-size:13px;font-style:italic;
+        color:rgba(237,232,245,.75);line-height:1.8;}
+      .gr-dq-attr{margin-top:6px;font-size:10px;color:#E8B84B;letter-spacing:.15em;
+        font-style:normal;text-transform:uppercase;}
+      .gr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:14px;}
+      .gr-card{border-radius:14px;padding:18px 20px;cursor:pointer;
+        border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);
+        transition:all .25s ease;position:relative;overflow:hidden;}
+      .gr-card:hover{transform:translateY(-2px);}
+      .gr-card.gr-open{grid-column:1/-1;transform:none;}
+      .gr-top{display:flex;align-items:center;gap:14px;}
+      .gr-num{font-family:'Cinzel',serif;font-size:16px;font-weight:700;flex-shrink:0;
+        width:42px;height:42px;border-radius:50%;display:flex;align-items:center;
+        justify-content:center;border:1px solid;}
+      .gr-en{font-family:'Cinzel',serif;font-size:13px;font-weight:600;
+        letter-spacing:.06em;flex:1;}
+      .gr-icon{font-size:22px;flex-shrink:0;}
+      .gr-expand{margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.07);
+        animation:fadeIn .25s ease;}
+      .gr-body{font-size:13px;line-height:1.85;color:rgba(237,232,245,.72);
+        font-weight:300;margin-bottom:14px;}
+      .gr-chant{font-size:12px;font-style:italic;line-height:1.75;padding:10px 14px;
+        border-radius:8px;border-left:2px solid;background:rgba(255,255,255,.03);}
+      .gr-hint{margin-top:10px;font-size:10px;color:rgba(237,232,245,.2);
+        text-align:center;letter-spacing:.1em;text-transform:uppercase;}
+      .gr-parable-btn{display:flex;align-items:center;gap:10px;cursor:pointer;
+        padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.08);
+        background:rgba(255,255,255,.02);transition:all .2s;width:100%;text-align:left;
+        font-family:'Raleway',sans-serif;color:rgba(237,232,245,.5);font-size:12px;
+        letter-spacing:.05em;}
+      .gr-parable-btn:hover{border-color:rgba(232,184,75,.3);color:rgba(237,232,245,.75);}
+      .gr-parable-box{margin-top:10px;padding:20px 22px;border-radius:14px;
+        background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);
+        animation:fadeIn .3s ease;}
+      .gr-ptext{font-size:13px;line-height:1.9;color:rgba(237,232,245,.68);
+        font-style:italic;margin-bottom:12px;}
+      .gr-preflect{font-size:12px;line-height:1.75;color:rgba(232,184,75,.7);margin-bottom:16px;}
+      .gr-poem{font-size:13px;font-style:italic;line-height:2.1;padding:14px 20px;
+        border-left:2px solid rgba(91,173,143,.5);color:rgba(237,232,245,.6);
+        background:rgba(91,173,143,.05);border-radius:0 8px 8px 0;white-space:pre-line;}
+      .gr-sensei{margin-top:20px;padding:12px 16px;text-align:center;font-size:12px;
+        font-style:italic;color:rgba(91,173,143,.7);line-height:1.75;}
+      .gr-sensei span{font-size:10px;color:#5BAD8F;letter-spacing:.15em;
+        text-transform:uppercase;font-style:normal;display:block;margin-top:4px;}
+      .gr-footer{margin-top:10px;text-align:center;font-size:11px;
+        color:rgba(237,232,245,.22);font-style:italic;line-height:1.8;}
       ::-webkit-scrollbar-track{background:transparent;}
       ::-webkit-scrollbar-thumb{background:rgba(232,184,75,.28);border-radius:4px;}
     `;
@@ -426,7 +493,7 @@
       const [entries,        setEntries]        = useState([]);
       const [lastUpdated,    setLastUpdated]    = useState(null);
       const [tab,            setTab]            = useState("track");
-      const [form,           setForm]           = useState({name:"",date:todayStr(),count:""});
+      const [form,           setForm]           = useState({name:"",date:todayStr(),count:"",challenge:60});
       const [errors,         setErrors]         = useState({});
       const [toast,          setToast]          = useState(null);
       const [submitting,     setSubmitting]     = useState(false);
@@ -447,6 +514,8 @@
       const [campDate,       setCampDate]       = useState("");
       const [campSaving,     setCampSaving]     = useState(false);
       const [campMsg,        setCampMsg]        = useState(null);
+      const [grExpanded,    setGrExpanded]    = useState(null);
+      const [grParable,      setGrParable]      = useState(false);
       const toastRef = useRef(null);
 
       const showToast = (msg, type="success") => {
@@ -525,10 +594,10 @@
         if (Object.keys(e).length){setErrors(e);return;}
         setSubmitting(true);
         try {
-          const r=await api.addEntry({name:form.name,date:form.date,count:parseInt(form.count)});
+          const r=await api.addEntry({name:form.name,date:form.date,count:parseInt(form.count),challenge:form.challenge});
           if (!r.ok) throw new Error(r.error||"Save failed");
-          setEntries(prev=>[...prev,{id:r.id||Date.now(),name:form.name,date:form.date,count:parseInt(form.count)}]);
-          setForm({name:"",date:todayStr(),count:""});
+          setEntries(prev=>[...prev,{id:r.id||Date.now(),name:form.name,date:form.date,count:parseInt(form.count),challenge:form.challenge}]);
+          setForm({name:"",date:todayStr(),count:"",challenge:60});
           setErrors({});
           showToast("✨ Beautifully done. Your daimoku has been recorded.");
         } catch(err){ showToast("Could not save — "+err.message,"error"); }
@@ -550,12 +619,16 @@
         let mine,target,elapsed;
         if (viewMode==="mtd"){
           mine=entries.filter(e=>{const d=new Date(e.date);return e.name===name&&d.getFullYear()===viewYear&&d.getMonth()===viewMonth;});
-          elapsed=daysElapsed(viewYear,viewMonth); target=elapsed*DAILY_TARGET;
+          elapsed=daysElapsed(viewYear,viewMonth);
         } else {
           mine=entries.filter(e=>e.name===name);
-          elapsed=daysElapsed(now.getFullYear(),now.getMonth()); target=elapsed*DAILY_TARGET;
+          elapsed=daysElapsed(now.getFullYear(),now.getMonth());
         }
-        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine};
+        // Use the person's most recent challenge selection; default 60
+        const latestEntry=[...mine].sort((a,b)=>b.date.localeCompare(a.date))[0];
+        const personalTarget=latestEntry&&[30,45].includes(latestEntry.challenge)?latestEntry.challenge:60;
+        target=elapsed*personalTarget;
+        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget};
       },[entries,viewYear,viewMonth,viewMode]);
 
       const allPersonData=names.map((n,i)=>getPersonStats(n,i));
@@ -622,11 +695,11 @@
                 borderRadius:10,textAlign:"center"}}>
                 <div style={{fontSize:10,letterSpacing:".2em",color:"#5BAD8F",
                   textTransform:"uppercase",marginBottom:7,fontFamily:"'Cinzel',serif"}}>
-                  🙏 Chanting For — April &amp; May Zadankai
+                  🙏 Chanting For — May Zadankai
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:"6px 12px"}}>
-                  {["🌟 20 members","💬 5 experiences","🛡️ Safe gathering",
-                    "🎙️ Seamless flow","🤝 4 new friends","🌍 World peace",
+                  {["🌟 25 members","💬 5 experiences","🤝 5 new members","🛡️ Safe gathering",
+                    "🎙️ Seamless flow","🌍 World peace",
                     "🌿 Nature","🕊️ An undefeated world"].map(t=>(
                     <span key={t} style={{fontSize:11,color:"rgba(237,232,245,.6)",
                       background:"rgba(255,255,255,.04)",borderRadius:20,
@@ -636,7 +709,7 @@
                   ))}
                 </div>
                 <div style={{marginTop:8,fontSize:10,color:"rgba(91,173,143,.6)",fontStyle:"italic"}}>
-                  Every minute of Daimoku has a direction. Let it count. 🔥
+                  60 · 45 · 30 mins — every minute counts. 🔥
                 </div>
               </div>
             </div>
@@ -649,7 +722,7 @@
             </div>
 
             <div className="tabs">
-              {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["admin","⚙️ Names"],["campaign","🗓️ Campaign"]].map(([k,l])=>(
+              {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["gratitude","🙏 Gratitude"],["admin","⚙️ Names"],["campaign","🗓️ Campaign"]].map(([k,l])=>(
                 <button key={k} className={`tab${tab===k?" on":""}`} onClick={()=>setTab(k)}>{l}</button>
               ))}
             </div>
@@ -675,7 +748,26 @@
                       {errors.date&&<div className="err">⚠ {errors.date}</div>}
                     </div>
                     <div className="fl">
-                      <label>Minutes Chanted</label>
+                      <label>Daily Challenge</label>
+                      <div style={{display:"flex",gap:10}}>
+                        {[60,45,30].map(c=>(
+                          <button key={c} disabled={submitting}
+                            onClick={()=>setForm(f=>({...f,challenge:c}))}
+                            style={{flex:1,padding:"11px",borderRadius:10,border:`1px solid ${form.challenge===c?"#E8B84B":"rgba(232,184,75,.2)"}`,
+                              background:form.challenge===c?"linear-gradient(135deg,rgba(232,184,75,.2),rgba(120,60,220,.12))":"rgba(255,255,255,.03)",
+                              color:form.challenge===c?"#F5D47A":"rgba(237,232,245,.45)",
+                              fontFamily:"'Cinzel',serif",fontSize:12,fontWeight:form.challenge===c?700:400,
+                              cursor:"pointer",transition:"all .2s",letterSpacing:".1em"}}>
+                            {c} min
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:10,color:"rgba(237,232,245,.3)",marginTop:5,textAlign:"center"}}>
+                        60 min — core · 45 min — steady · 30 min — on the go
+                      </div>
+                    </div>
+                    <div className="fl">
+                      <label>Minutes Chanted Today</label>
                       <input className="fi" type="number" min="1" step="1" placeholder="e.g. 30" value={form.count} disabled={submitting}
                         onChange={e=>setForm(f=>({...f,count:e.target.value}))}
                         onKeyDown={e=>e.key==="Enter"&&!submitting&&handleSubmit()} />
@@ -734,7 +826,12 @@
                             <div className="pinfo">
                               <div className="pname">{p.name}</div>
                               <div className="pmins">{p.total.toLocaleString()} / {p.target.toLocaleString()} mins</div>
-                              <div className="pmins">{viewMode==="mtd"?`${elapsed} days × ${DAILY_TARGET} min target`:`All time · ${[...new Set(p.entries.map(e=>e.date))].length} logged days`}</div>
+                              <div className="pmins">{viewMode==="mtd"?`${elapsed} days × ${p.personalTarget} min target`:`All time · ${[...new Set(p.entries.map(e=>e.date))].length} logged days`}
+                                <span style={{marginLeft:6,fontSize:9,background:p.personalTarget===30?"rgba(94,155,191,.2)":"rgba(232,184,75,.15)",
+                                  color:p.personalTarget===30?"#5E9BBF":"#E8B84B",borderRadius:20,padding:"1px 7px",border:`1px solid ${p.personalTarget===30?"rgba(94,155,191,.3)":"rgba(232,184,75,.25)"}`}}>
+                                  {p.personalTarget} min challenge
+                                </span>
+                              </div>
                             </div>
                             <div className="pbadge">
                               <div className="pbadge-pct" style={{color:sc}}>{achievement}%</div>
@@ -801,7 +898,81 @@
                 </>
               )}
 
-              {/* ══ ADMIN ══ */}
+              {/* ══ GRATITUDE ══ */}
+              {tab==="gratitude" && (
+                <div className="card">
+                  <div className="sec">🙏 Four Debts of Gratitude</div>
+                  <div style={{fontSize:12,color:"rgba(237,232,245,.4)",fontStyle:"italic",marginBottom:18,lineHeight:1.7}}>
+                    From this month's <em>Value Creation</em>. Tap each to reflect. Let gratitude be the starting point — not the conclusion.
+                  </div>
+
+                  <div className="gr-dq">
+                    "One who understands that in this world we owe four debts of gratitude is worthy to be called human."
+                    <div className="gr-dq-attr">— Nichiren Daishonin</div>
+                  </div>
+
+                  <div className="gr-grid">
+                    {DEBTS.map((d,i)=>{
+                      const isOpen=grExpanded===i;
+                      return (
+                        <div key={i} className={`gr-card${isOpen?" gr-open":""}`}
+                          onClick={()=>setGrExpanded(isOpen?null:i)}
+                          style={{
+                            borderColor:isOpen?d.color+"55":"rgba(255,255,255,.07)",
+                            background:isOpen?`linear-gradient(135deg,${d.glow},rgba(255,255,255,.02))`:"rgba(255,255,255,.025)",
+                            boxShadow:isOpen?`0 4px 32px ${d.glow}`:"none",
+                          }}>
+                          <div style={{position:"absolute",top:0,left:0,right:0,height:2,
+                            background:`linear-gradient(90deg,${d.color},transparent)`,
+                            opacity:isOpen?1:0,transition:"opacity .25s",borderRadius:"14px 14px 0 0"}}/>
+                          <div className="gr-top">
+                            <div className="gr-num" style={{color:d.color,borderColor:d.color+"44",background:d.glow}}>{d.num}</div>
+                            <div className="gr-en" style={{color:isOpen?d.color:"#EDE8F5"}}>{d.en}</div>
+                            <div className="gr-icon">{d.icon}</div>
+                          </div>
+                          {isOpen&&(
+                            <div className="gr-expand">
+                              <p className="gr-body">{d.reflection}</p>
+                              <div className="gr-chant" style={{borderColor:d.color+"66",color:d.color+"CC"}}>{d.chant}</div>
+                              <div className="gr-hint">tap to close</div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button className="gr-parable-btn" onClick={()=>setGrParable(s=>!s)}>
+                    <span style={{fontSize:18}}>🐦‍⬛</span>
+                    <span>The Parable of the White Crow &nbsp; {grParable?"▴":"▾"}</span>
+                  </button>
+
+                  {grParable&&(
+                    <div className="gr-parable-box">
+                      <p className="gr-ptext">
+                        A king was once saved by a white crow — and spent years searching for it to repay the debt.
+                        It was never found. A wise advisor said: <em>care for all the black crows instead.</em> The king smiled and said — "That is true gratitude."
+                      </p>
+                      <p className="gr-preflect">
+                        How many 'white crows' in our own lives have we never been able to thank directly?
+                        And are we really caring enough for the black crows?
+                      </p>
+                      <div className="gr-poem">{GRATITUDE_POEM}</div>
+                    </div>
+                  )}
+
+                  <div className="gr-sensei">
+                    "Gratitude is a source of fundamental human strength."
+                    <span>— Daisaku Ikeda</span>
+                  </div>
+                  <div className="gr-footer">
+                    Gratitude isn't just a feeling. It becomes a vow.<br/>
+                    Daimoku chanted with a thankful heart lands differently.
+                  </div>
+                </div>
+              )}
+
+              {/* ══ ADMIN ══ */}}
               {tab==="admin" && (
                 <div className="card">
                   <div className="sec">Manage Names</div>
