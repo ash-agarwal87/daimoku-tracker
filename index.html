@@ -116,6 +116,7 @@ repaid in every living face.`;
     // ── Campaign start date helper ───────────────────────────────────
     // Matches by startDate year/month — immune to locale label differences
     const getCampaignStart = (campaigns, y, m) => {
+      console.log('🔍 getCampaignStart called:', y, m, 'campaigns:', JSON.stringify(campaigns));
       // Primary: match by startDate falling in the same year/month
       const matchByDate = campaigns.find(c => {
         if (!c.startDate) return false;
@@ -586,8 +587,9 @@ repaid in every living face.`;
           // Load campaign dates for dashboard
           try {
             const cd = await api.getCampaignDates();
+            console.log('📅 Campaign dates from API:', JSON.stringify(cd));
             if (cd.ok) setCampaigns(cd.campaigns||[]);
-          } catch(e) {}
+          } catch(e) { console.log('Campaign load error:', e); }
         } catch(e) {
           if (!isRefresh) setAppState("error");
           else showToast("Refresh failed — "+e.message, "error");
