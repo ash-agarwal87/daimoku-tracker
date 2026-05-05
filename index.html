@@ -114,16 +114,26 @@ repaid in every living face.`;
     };
 
     // ── Campaign start date helper ───────────────────────────────────
-    // Returns Date object for the campaign start of a given year/month
-    // Falls back to 1st of the month if no campaign is configured
+    // Matches by startDate year/month — immune to locale label differences
     const getCampaignStart = (campaigns, y, m) => {
-      const label = new Date(y, m).toLocaleString("default", {month:"long", year:"numeric"});
-      const match = campaigns.find(c => c.label === label);
-      if (match && match.startDate) {
-        const [sy, sm, sd] = match.startDate.split("-");
+      // Primary: match by startDate falling in the same year/month
+      const matchByDate = campaigns.find(c => {
+        if (!c.startDate) return false;
+        const d = new Date(c.startDate + "T00:00:00");
+        return d.getFullYear() === y && d.getMonth() === m;
+      });
+      if (matchByDate && matchByDate.startDate) {
+        const [sy, sm, sd] = matchByDate.startDate.split("-");
         return new Date(parseInt(sy), parseInt(sm)-1, parseInt(sd));
       }
-      return new Date(y, m, 1); // fallback: 1st of month
+      // Fallback: try label match with en-US locale (matches GAS MMMM yyyy format)
+      const label = new Date(y, m, 1).toLocaleString("en-US", {month:"long", year:"numeric"});
+      const matchByLabel = campaigns.find(c => c.label === label);
+      if (matchByLabel && matchByLabel.startDate) {
+        const [sy, sm, sd] = matchByLabel.startDate.split("-");
+        return new Date(parseInt(sy), parseInt(sm)-1, parseInt(sd));
+      }
+      return new Date(y, m, 1); // final fallback: 1st of month
     };
 
     // Days elapsed since campaign start (capped at today)
@@ -627,7 +637,7 @@ repaid in every living face.`;
       // Generate next 12 month labels
       const monthOptions = Array.from({length:12},(_,i) => {
         const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
-        return d.toLocaleString("default",{month:"long",year:"numeric"});
+        return d.toLocaleString("en-US",{month:"long",year:"numeric"});
       });
 
       const handleSubmit = async () => {
