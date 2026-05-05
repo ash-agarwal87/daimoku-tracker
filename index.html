@@ -114,27 +114,24 @@ repaid in every living face.`;
     };
 
     // ── Campaign start date helper ───────────────────────────────────
-    // Matches by startDate year/month — immune to locale label differences
     const getCampaignStart = (campaigns, y, m) => {
-      console.log('🔍 getCampaignStart called:', y, m, 'campaigns:', JSON.stringify(campaigns));
-      // Primary: match by startDate falling in the same year/month
-      const matchByDate = campaigns.find(c => {
+      // Get ALL entries for this month
+      const monthMatches = campaigns.filter(c => {
         if (!c.startDate) return false;
         const d = new Date(c.startDate + "T00:00:00");
         return d.getFullYear() === y && d.getMonth() === m;
       });
-      if (matchByDate && matchByDate.startDate) {
-        const [sy, sm, sd] = matchByDate.startDate.split("-");
-        return new Date(parseInt(sy), parseInt(sm)-1, parseInt(sd));
-      }
-      // Fallback: try label match with en-US locale (matches GAS MMMM yyyy format)
-      const label = new Date(y, m, 1).toLocaleString("en-US", {month:"long", year:"numeric"});
-      const matchByLabel = campaigns.find(c => c.label === label);
-      if (matchByLabel && matchByLabel.startDate) {
-        const [sy, sm, sd] = matchByLabel.startDate.split("-");
-        return new Date(parseInt(sy), parseInt(sm)-1, parseInt(sd));
-      }
-      return new Date(y, m, 1); // final fallback: 1st of month
+      if (monthMatches.length === 0) return new Date(y, m, 1);
+      // Prefer admin-set dates (day != 1st) — take last one in array (most recently set)
+      const adminSet = monthMatches.filter(c => {
+        const d = new Date(c.startDate + "T00:00:00");
+        return d.getDate() !== 1;
+      });
+      const best = adminSet.length > 0
+        ? adminSet[adminSet.length - 1]   // last admin-set entry
+        : monthMatches[monthMatches.length - 1]; // last default entry
+      const [sy, sm, sd] = best.startDate.split("-");
+      return new Date(parseInt(sy), parseInt(sm)-1, parseInt(sd));
     };
 
     // Days elapsed since campaign start (capped at today)
@@ -587,7 +584,6 @@ repaid in every living face.`;
           // Load campaign dates for dashboard
           try {
             const cd = await api.getCampaignDates();
-            console.log('📅 Campaign dates from API:', JSON.stringify(cd));
             if (cd.ok) setCampaigns(cd.campaigns||[]);
           } catch(e) { console.log('Campaign load error:', e); }
         } catch(e) {
