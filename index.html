@@ -301,7 +301,65 @@ repaid in every living face.`;
     // ═════════════════════════════════════════════════════════════════
     //  CSS
     // ═════════════════════════════════════════════════════════════════
-    const CSS = `
+    // ── Time-of-day theme ──────────────────────────────────────────
+    const getTimeTheme = () => {
+      const h = new Date().getHours();
+      if (h >= 5  && h < 9)  return 'dawn';
+      if (h >= 9  && h < 17) return 'day';
+      if (h >= 17 && h < 20) return 'dusk';
+      return 'night';
+    };
+    const TIME_THEMES = {
+      dawn:  { bg1:'rgba(180,80,40,.22)',  bg2:'rgba(232,184,75,.18)', label:'🌅 Dawn — the world stirs',  accent:'#F5A623' },
+      day:   { bg1:'rgba(94,155,191,.18)', bg2:'rgba(91,173,143,.12)', label:'☀️ Day — full momentum',      accent:'#5E9BBF' },
+      dusk:  { bg1:'rgba(155,108,196,.22)',bg2:'rgba(232,184,75,.15)', label:'🌇 Dusk — turning inward',    accent:'#9B6CC4' },
+      night: { bg1:'rgba(120,60,220,.22)', bg2:'rgba(232,184,75,.13)', label:'🌙 Night — deep daimoku',     accent:'#E8B84B' },
+    };
+
+        const CSS = `
+      /* ── Entrance animations ── */
+      @keyframes slideUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+      @keyframes slideIn{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+      @keyframes countUp{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+      @keyframes barGrow{from{width:0}to{width:var(--bar-w)}}
+      @keyframes popIn{0%{transform:scale(0.7);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+      @keyframes celebBurst{0%{box-shadow:0 0 0 0 rgba(232,184,75,.6)}70%{box-shadow:0 0 0 18px rgba(232,184,75,0)}100%{box-shadow:0 0 0 0 rgba(232,184,75,0)}}
+      @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+      @keyframes floatUp{0%{transform:translateY(0) scale(1);opacity:.9}100%{transform:translateY(-60px) scale(0);opacity:0}}
+
+      .anim-slide-up{animation:slideUp .5s cubic-bezier(.4,0,.2,1) both;}
+      .anim-slide-in{animation:slideIn .4s cubic-bezier(.4,0,.2,1) both;}
+      .anim-pop{animation:popIn .45s cubic-bezier(.4,0,.2,1) both;}
+      .anim-delay-1{animation-delay:.08s}
+      .anim-delay-2{animation-delay:.16s}
+      .anim-delay-3{animation-delay:.24s}
+      .anim-delay-4{animation-delay:.32s}
+      .anim-delay-5{animation-delay:.40s}
+      .anim-delay-6{animation-delay:.48s}
+
+      /* ── Time theme label ── */
+      .time-label{font-size:10px;color:rgba(237,232,245,.3);letter-spacing:.18em;
+        text-transform:uppercase;text-align:center;margin-bottom:8px;
+        animation:slideUp .6s ease both;}
+
+      /* ── Celebration card ── */
+      .pc.celeb{animation:celebBurst 1.2s ease-in-out 3;}
+      .pc.celeb .pfill{background:linear-gradient(90deg,#5BAD8F,#E8B84B,#5BAD8F) !important;
+        background-size:200% 100% !important;animation:shimmer 2s linear infinite !important;}
+
+      /* ── Milestone banner ── */
+      .milestone-banner{
+        padding:12px 18px;border-radius:12px;text-align:center;
+        font-family:'Cinzel',serif;font-size:12px;letter-spacing:.14em;
+        margin-bottom:14px;animation:popIn .5s ease both;
+        border:1px solid rgba(232,184,75,.4);
+        background:linear-gradient(135deg,rgba(232,184,75,.15),rgba(91,173,143,.1));}
+
+      /* ── Confetti particle ── */
+      .confetti-wrap{position:fixed;top:0;left:0;width:100%;height:100%;
+        pointer-events:none;z-index:999;overflow:hidden;}
+      .confetti-dot{position:absolute;border-radius:50%;animation:floatUp 1.8s ease-out forwards;}
+
       .app{min-height:100vh;padding-bottom:70px;
         background:radial-gradient(ellipse at 15% 0%,rgba(120,60,220,.22) 0%,transparent 52%),
                    radial-gradient(ellipse at 85% 90%,rgba(232,184,75,.13) 0%,transparent 52%),#080614;}
@@ -455,6 +513,32 @@ repaid in every living face.`;
         font-size:12px;color:#E8B84B;display:flex;align-items:center;gap:8px;z-index:1000;
         animation:fadeIn .2s ease;}
       ::-webkit-scrollbar{width:4px;}
+      ::-webkit-scrollbar-track{background:transparent;}
+      ::-webkit-scrollbar-thumb{background:rgba(232,184,75,.28);border-radius:4px;}
+      .theme-morning .app{background:radial-gradient(ellipse at 20% 0%,rgba(255,180,50,.18) 0%,transparent 55%),radial-gradient(ellipse at 80% 90%,rgba(232,184,75,.14) 0%,transparent 50%),#0d0a14;}
+      .theme-morning h1{background:linear-gradient(135deg,#FFD77A,#F0A030,#E87020);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+      .theme-evening .app{background:radial-gradient(ellipse at 30% 10%,rgba(180,60,120,.22) 0%,transparent 52%),radial-gradient(ellipse at 70% 80%,rgba(100,60,200,.18) 0%,transparent 52%),#0a0618;}
+      .theme-evening h1{background:linear-gradient(135deg,#FFB4D0,#E87CB4,#C060A0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+      .theme-night .app{background:radial-gradient(ellipse at 20% 5%,rgba(40,60,140,.25) 0%,transparent 50%),radial-gradient(ellipse at 80% 85%,rgba(60,40,120,.18) 0%,transparent 50%),#04030e;}
+      .theme-night h1{background:linear-gradient(135deg,#B0C4FF,#8090E8,#6070C0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+      .theme-tag{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.15em;color:rgba(237,232,245,.25);text-transform:uppercase;padding:3px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.07);font-family:'Raleway',sans-serif;margin-left:8px;}
+      .scard{opacity:0;transform:translateY(16px);transition:opacity .4s ease,transform .4s ease;}
+      .scard.visible{opacity:1;transform:translateY(0);}
+      .fade-up{opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .5s ease;}
+      .fade-up.visible{opacity:1;transform:translateY(0);}
+      .pc{opacity:0;transform:translateY(18px);transition:opacity .45s ease,transform .45s ease,background .2s,border-color .2s;}
+      .pc.visible{opacity:1;transform:translateY(0);}
+      .pc.visible:hover{transform:translateY(-2px);}
+      .pc.exp{transform:none!important;}
+      @keyframes celebPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,184,75,0);}50%{box-shadow:0 0 28px 6px rgba(232,184,75,.35);}}
+      @keyframes perfectPulse{0%,100%{box-shadow:0 0 0 0 rgba(91,173,143,0);}50%{box-shadow:0 0 36px 10px rgba(91,173,143,.4);}}
+      @keyframes starFloat{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-40px) scale(.3);}}
+      .pc-celebrate{animation:celebPulse 2.5s ease-in-out infinite;}
+      .pc-perfect{animation:perfectPulse 2s ease-in-out infinite;border-color:rgba(91,173,143,.5)!important;background:linear-gradient(135deg,rgba(91,173,143,.1),rgba(91,173,143,.04))!important;}
+      .pc-perfect .pbadge-pct{background:linear-gradient(135deg,#7ECFAD,#5BAD8F,#3D9070);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+      .milestone-banner{padding:12px 18px;border-radius:12px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;animation:fadeIn .5s ease;border:1px solid;}
+      .star-particle{position:absolute;font-size:12px;pointer-events:none;animation:starFloat 1.2s ease-out forwards;}
+      .pfill{transition:width .9s cubic-bezier(.4,0,.2,1)!important;}
       .gr-dq{margin-bottom:18px;padding:14px 18px;background:rgba(232,184,75,.06);
         border:1px solid rgba(232,184,75,.18);border-left:3px solid #E8B84B;
         border-radius:0 10px 10px 0;font-size:13px;font-style:italic;
@@ -558,8 +642,69 @@ repaid in every living face.`;
       const [campMsg,        setCampMsg]        = useState(null);
       const [challenges,     setChallenges]     = useState({}); // {name: 30|45|60}
       const [grExpanded,    setGrExpanded]    = useState(null);
+      const [timeTheme,      setTimeTheme]      = useState(getTimeTheme());
+      const [confetti,       setConfetti]       = useState([]);
+      const [dashKey,        setDashKey]        = useState(0); // remount animations on tab switch
+
+      // Update time theme every minute
+      useEffect(()=>{
+        const t = setInterval(()=>setTimeTheme(getTimeTheme()), 60000);
+        return ()=>clearTimeout(t);
+      },[]);
+
+      // Confetti burst
+      const burstConfetti = () => {
+        const dots = Array.from({length:18},(_,i)=>({
+          id:Date.now()+i,
+          left: Math.random()*100,
+          color: ['#E8B84B','#5BAD8F','#9B6CC4','#5E9BBF','#E06B75'][i%5],
+          size: 6+Math.random()*8,
+          delay: Math.random()*0.6,
+        }));
+        setConfetti(dots);
+        setTimeout(()=>setConfetti([]),2500);
+      };
       const [grParable,      setGrParable]      = useState(false);
       const toastRef = useRef(null);
+      const [theme, setTheme] = useState("afternoon");
+      const [milestone, setMilestone] = useState(null);
+      const [prevGroupPct, setPrevGroupPct] = useState(0);
+
+      // Time of day theme
+      useEffect(() => {
+        const h = new Date().getHours();
+        if (h >= 5  && h < 12) setTheme("morning");
+        else if (h >= 12 && h < 17) setTheme("afternoon");
+        else if (h >= 17 && h < 21) setTheme("evening");
+        else setTheme("night");
+      }, []);
+
+      const themeLabel = {"morning":"🌅 Morning","afternoon":"☀️ Afternoon","evening":"🌆 Evening","night":"🌙 Night"}[theme]||"";
+
+      // Staggered entrance for summary cards
+      useEffect(() => {
+        if (appState !== "ready") return;
+        setTimeout(() => {
+          document.querySelectorAll('.scard').forEach((el,i) => {
+            setTimeout(() => el.classList.add('visible'), i * 80);
+          });
+          document.querySelectorAll('.pc').forEach((el,i) => {
+            setTimeout(() => el.classList.add('visible'), i * 60 + 200);
+          });
+          document.querySelectorAll('.fade-up').forEach((el,i) => {
+            setTimeout(() => el.classList.add('visible'), i * 100);
+          });
+        }, 100);
+      }, [appState, tab]);
+
+      // Milestone detection
+      useEffect(() => {
+        const gp = pct(totalMins, groupMtdTarget||1);
+        if (prevGroupPct < 50  && gp >= 50)  setMilestone({pct:50,  msg:"Halfway there! The Law is moving. 🔥"});
+        if (prevGroupPct < 75  && gp >= 75)  setMilestone({pct:75,  msg:"75% achieved — the Zadankai can feel it! 🪷"});
+        if (prevGroupPct < 100 && gp >= 100) setMilestone({pct:100, msg:"District target reached! Nam-Myoho-Renge-Kyo! 🎉"});
+        setPrevGroupPct(gp);
+      }, [totalMins, groupMtdTarget]);
 
       const showToast = (msg, type="success") => {
         setToast({msg,type});
@@ -654,6 +799,11 @@ repaid in every living face.`;
           setForm({name:"",date:todayStr(),count:""});
           setErrors({});
           showToast("✨ Beautifully done. Your daimoku has been recorded.");
+          // Burst confetti if person just hit 100%
+          setTimeout(()=>{
+            const p = getPersonStats(form.name, names.indexOf(form.name));
+            if (pct(p.total, p.target) >= 100) burstConfetti();
+          }, 500);
         } catch(err){ showToast("Could not save — "+err.message,"error"); }
         finally { setSubmitting(false); }
       };
@@ -745,13 +895,34 @@ repaid in every living face.`;
       return (
         <>
           <style>{CSS}</style>
-          <div className="app">
+          <div className="app" style={{
+              background:`radial-gradient(ellipse at 15% 0%,${TIME_THEMES[timeTheme].bg1} 0%,transparent 52%),
+                          radial-gradient(ellipse at 85% 90%,${TIME_THEMES[timeTheme].bg2} 0%,transparent 52%),#080614`
+            }}>
+            
+            {/* Confetti */}
+            {confetti.length>0&&(
+              <div className="confetti-wrap">
+                {confetti.map(d=>(
+                  <div key={d.id} className="confetti-dot" style={{
+                    left:`${d.left}%`, bottom:'-10px',
+                    width:d.size, height:d.size,
+                    background:d.color,
+                    animationDelay:`${d.delay}s`,
+                  }}/>
+                ))}
+              </div>
+            )}
+
             <div className="hdr">
               <div className="lotus-row">
                 <span className="lotus">🪷</span><span className="lotus">🪷</span><span className="lotus">🪷</span>
               </div>
               <h1>Daily Daimoku Tracker</h1>
-              <p className="sub">Nam · Myoho · Renge · Kyo</p>
+              <p className="sub">Nam · Myoho · Renge · Kyo <span className="theme-tag">{themeLabel}</span></p>
+              <div className="time-label" style={{color:TIME_THEMES[timeTheme].accent}}>
+                {TIME_THEMES[timeTheme].label}
+              </div>
               <div className="quote-box">
                 <p className="qt">{IKEDA_QUOTE}</p>
                 <p className="qa">— Daisaku Ikeda</p>
@@ -791,7 +962,7 @@ repaid in every living face.`;
 
             <div className="tabs">
               {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["gratitude","🙏 Gratitude"],["admin","🔐 Admin"]].map(([k,l])=>(
-                <button key={k} className={`tab${tab===k?" on":""}`} onClick={()=>setTab(k)}>{l}</button>
+                <button key={k} className={`tab${tab===k?" on":""}`} onClick={()=>{setTab(k);if(k==="dashboard")setDashKey(d=>d+1);}}>{l}</button>
               ))}
             </div>
 
@@ -846,7 +1017,7 @@ repaid in every living face.`;
                     </div>
                   </div>
 
-                  <div className="sstrip">
+                  <div className="sstrip" key={dashKey}>
                     {[
                       [totalMins.toLocaleString(),"Total Mins Chanted"],
                       [pct(totalMins,groupMtdTarget)+"%","Group Achievement",statusColor(totalMins,groupMtdTarget)],
@@ -855,21 +1026,38 @@ repaid in every living face.`;
                       [weightedAvgPledge+" min","Avg Daily Pledge"],
                       [groupMtdTarget.toLocaleString(),"Group MTD Target"],
                     ].map(([val,lbl,col],i)=>(
-                      <div key={i} className="scard">
+                      <div key={i} className={`scard anim-pop anim-delay-${Math.min(i+1,6)}`}>
                         <div className="sval" style={col?{color:col}:{}}>{val}</div>
                         <div className="slbl">{lbl}</div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="pcards">
+                  {/* Milestone banner */}
+                  {pct(totalMins,groupMtdTarget)>=100&&(
+                    <div className="milestone-banner" style={{color:"#E8B84B"}}>
+                      🎉 District Goal Achieved! 100% — Nam-Myoho-Renge-Kyo 🪷
+                    </div>
+                  )}
+                  {pct(totalMins,groupMtdTarget)>=75&&pct(totalMins,groupMtdTarget)<100&&(
+                    <div className="milestone-banner" style={{color:"#5BAD8F"}}>
+                      ⚡ 75% reached — the final stretch. Keep chanting! 🔥
+                    </div>
+                  )}
+                  {pct(totalMins,groupMtdTarget)>=50&&pct(totalMins,groupMtdTarget)<75&&(
+                    <div className="milestone-banner" style={{color:"#9B6CC4"}}>
+                      🌟 Halfway there — every minute now doubles in power 🪷
+                    </div>
+                  )}
+                  <div className="pcards" key={dashKey+"p"}>
                     {allPersonData.map((p,idx)=>{
                       const achievement=pct(p.total,p.target), sc=statusColor(p.total,p.target);
                       const isExp=expandedPerson===p.name;
                       const dailyData=isExp?getDailyData(p.entries):[];
                       const logEntries=[...p.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
                       return (
-                        <div key={p.name} className={`pc${isExp?" exp":""}`}
+                        <div key={p.name}
+                          className={`pc${isExp?" exp":""}${pct(p.total,p.target)>=100?" celeb":""} anim-slide-up anim-delay-${Math.min(idx+1,6)}`}
                           onClick={()=>{setExpandedPerson(isExp?null:p.name);setDetailTab("chart");}}>
                           <div className="pctop">
                             <div className="av" style={{background:p.color}}>{initials(p.name)}</div>
@@ -889,7 +1077,13 @@ repaid in every living face.`;
                             </div>
                           </div>
                           <div className="pbar">
-                            <div className="pfill" style={{width:`${Math.min(achievement,100)}%`,background:`linear-gradient(90deg,${sc}88,${sc})`}}/>
+                            <div className="pfill" style={{
+                              '--bar-w':`${Math.min(achievement,100)}%`,
+                              width:`${Math.min(achievement,100)}%`,
+                              background:`linear-gradient(90deg,${sc}88,${sc})`,
+                              animation:'barGrow .8s cubic-bezier(.4,0,.2,1) both',
+                              animationDelay:`${idx*0.06}s`
+                            }}/>
                           </div>
 
                           {isExp && (
@@ -940,7 +1134,7 @@ repaid in every living face.`;
                   </div>
 
                   {totalMins>0 && (
-                    <div className="card" style={{marginTop:18}}>
+                    <div className="card anim-slide-up anim-delay-6" style={{marginTop:18}}>
                       <div className="sec">Group Overview — Chanted vs Target</div>
                       <GroupChart data={groupChartData} nameIndex={nameIndex} />
                     </div>
