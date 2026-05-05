@@ -113,6 +113,29 @@ repaid in every living face.`;
       }
     };
 
+    // ── Campaign start date helper ───────────────────────────────────
+    // Returns Date object for the campaign start of a given year/month
+    // Falls back to 1st of the month if no campaign is configured
+    const getCampaignStart = (campaigns, y, m) => {
+      const label = new Date(y, m).toLocaleString("default", {month:"long", year:"numeric"});
+      const match = campaigns.find(c => c.label === label);
+      if (match && match.startDate) {
+        const [sy, sm, sd] = match.startDate.split("-");
+        return new Date(parseInt(sy), parseInt(sm)-1, parseInt(sd));
+      }
+      return new Date(y, m, 1); // fallback: 1st of month
+    };
+
+    // Days elapsed since campaign start (capped at today)
+    const daysElapsedFromStart = (startDate) => {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const start = new Date(startDate);
+      start.setHours(0,0,0,0);
+      if (start > today) return 0;
+      return Math.floor((today - start) / 86400000) + 1;
+    };
+
     // ═════════════════════════════════════════════════════════════════
     //  Chart.js Components
     // ═════════════════════════════════════════════════════════════════
@@ -550,6 +573,11 @@ repaid in every living face.`;
             const ch = await api.getChallenges();
             if (ch.ok) setChallenges(ch.challenges||{});
           } catch(e) {}
+          // Load campaign dates for dashboard
+          try {
+            const cd = await api.getCampaignDates();
+            if (cd.ok) setCampaigns(cd.campaigns||[]);
+          } catch(e) {}
         } catch(e) {
           if (!isRefresh) setAppState("error");
           else showToast("Refresh failed — "+e.message, "error");
@@ -634,26 +662,38 @@ repaid in every living face.`;
       // Dashboard calculations
       const getPersonStats = useCallback((name,idx)=>{
         const color=PALETTE[idx%PALETTE.length];
-        let mine,target,elapsed;
+        let mine,target,elapsed,campaignStart;
         if (viewMode==="mtd"){
-          mine=entries.filter(e=>{const d=new Date(e.date);return e.name===name&&d.getFullYear()===viewYear&&d.getMonth()===viewMonth;});
-          elapsed=daysElapsed(viewYear,viewMonth);
+          campaignStart=getCampaignStart(campaigns,viewYear,viewMonth);
+          elapsed=daysElapsedFromStart(campaignStart);
+          // Only entries on or after campaign start
+          mine=entries.filter(e=>{
+            const d=new Date(e.date+"T00:00:00");
+            return e.name===name && d>=campaignStart &&
+              d.getFullYear()===viewYear && d.getMonth()===viewMonth;
+          });
         } else {
+          campaignStart=new Date(0); // all time — no filter
           mine=entries.filter(e=>e.name===name);
           elapsed=daysElapsed(now.getFullYear(),now.getMonth());
         }
-        // Use the person's most recent challenge selection; default 60
         const latestEntry=[...mine].sort((a,b)=>b.date.localeCompare(a.date))[0];
         const personalTarget=challenges[name]||(latestEntry&&[30,45,60].includes(latestEntry.challenge)?latestEntry.challenge:60);
         target=elapsed*personalTarget;
-        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget};
-      },[entries,viewYear,viewMonth,viewMode]);
+        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget,campaignStart};
+      },[entries,viewYear,viewMonth,viewMode,campaigns,challenges]);
 
       const allPersonData=names.map((n,i)=>getPersonStats(n,i));
       const totalMins=allPersonData.reduce((s,p)=>s+p.total,0);
       const totalTarget=allPersonData.reduce((s,p)=>s+p.target,0);
       const onTrack=allPersonData.filter(p=>pct(p.total,p.target)>=80).length;
-      const elapsed=daysElapsed(viewYear,viewMonth);
+      // Weighted average daily pledge across all members
+      const activeMembersCount=allPersonData.filter(p=>p.personalTarget>0).length||1;
+      const weightedAvgPledge=Math.round(allPersonData.reduce((s,p)=>s+p.personalTarget,0)/activeMembersCount);
+      // Group MTD target = sum of all individual targets
+      const groupMtdTarget=totalTarget;
+      const campStart=getCampaignStart(campaigns,viewYear,viewMonth);
+      const elapsed=viewMode==="mtd"?daysElapsedFromStart(campStart):daysElapsed(now.getFullYear(),now.getMonth());
       const isCurrent=viewYear===now.getFullYear()&&viewMonth===now.getMonth();
 
       const prevMonth=()=>{if(viewMonth===0){setViewYear(y=>y-1);setViewMonth(11);}else setViewMonth(m=>m-1);setExpandedPerson(null);};
@@ -665,9 +705,11 @@ repaid in every living face.`;
           return Object.entries(g).sort(([a],[b])=>a.localeCompare(b)).map(([date,mins])=>({day:fmtDate(date),mins}));
         }
         const g={};pEntries.forEach(e=>{g[e.date]=(g[e.date]||0)+e.count;});
+        const cs=getCampaignStart(campaigns,viewYear,viewMonth);
         return Array.from({length:elapsed},(_,i)=>{
-          const d=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
-          return {day:i+1,mins:g[d]||0};
+          const dd=new Date(cs); dd.setDate(dd.getDate()+i);
+          const ds=`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+          return {day:dd.getDate(),mins:g[ds]||0};
         });
       },[viewMode,viewYear,viewMonth,elapsed]);
 
@@ -740,7 +782,7 @@ repaid in every living face.`;
             </div>
 
             <div className="tabs">
-              {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["gratitude","🙏 Gratitude"],["admin","⚙️ Names"],["campaign","🗓️ Campaign"]].map(([k,l])=>(
+              {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["gratitude","🙏 Gratitude"],["admin","🔐 Admin"]].map(([k,l])=>(
                 <button key={k} className={`tab${tab===k?" on":""}`} onClick={()=>setTab(k)}>{l}</button>
               ))}
             </div>
@@ -798,11 +840,12 @@ repaid in every living face.`;
 
                   <div className="sstrip">
                     {[
-                      [totalMins.toLocaleString(),"Total Mins"],
-                      [pct(totalMins,totalTarget)+"%","Group Achievement",statusColor(totalMins,totalTarget)],
+                      [totalMins.toLocaleString(),"Total Mins Chanted"],
+                      [pct(totalMins,groupMtdTarget)+"%","Group Achievement",statusColor(totalMins,groupMtdTarget)],
                       [onTrack,"On Track (≥80%)","#5BAD8F"],
-                      ...(viewMode==="mtd"?[[elapsed,"Days Elapsed"]]:[]),
-                      [DAILY_TARGET,"Daily Target (mins)"],
+                      ...(viewMode==="mtd"?[[elapsed,"Days Since "+campStart.toLocaleDateString("en-GB",{day:"numeric",month:"short"})]]:[]),
+                      [weightedAvgPledge+" min","Avg Daily Pledge"],
+                      [groupMtdTarget.toLocaleString(),"Group MTD Target"],
                     ].map(([val,lbl,col],i)=>(
                       <div key={i} className="scard">
                         <div className="sval" style={col?{color:col}:{}}>{val}</div>
@@ -1033,7 +1076,7 @@ repaid in every living face.`;
               )}
 
               {/* ══ CAMPAIGN ADMIN ══ */}
-              {tab==="campaign" && (
+              {tab==="admin" && (
                 <div className="card">
                   <div className="sec">Campaign Start Date 🔒</div>
 
