@@ -522,14 +522,20 @@ repaid in every living face.`;
       .theme-night .app{background:radial-gradient(ellipse at 20% 5%,rgba(40,60,140,.25) 0%,transparent 50%),radial-gradient(ellipse at 80% 85%,rgba(60,40,120,.18) 0%,transparent 50%),#04030e;}
       .theme-night h1{background:linear-gradient(135deg,#B0C4FF,#8090E8,#6070C0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
       .theme-tag{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.15em;color:rgba(237,232,245,.25);text-transform:uppercase;padding:3px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.07);font-family:'Raleway',sans-serif;margin-left:8px;}
-      .scard{opacity:0;transform:translateY(16px);transition:opacity .4s ease,transform .4s ease;}
-      .scard.visible{opacity:1;transform:translateY(0);}
-      .fade-up{opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .5s ease;}
-      .fade-up.visible{opacity:1;transform:translateY(0);}
-      .pc{opacity:0;transform:translateY(18px);transition:opacity .45s ease,transform .45s ease,background .2s,border-color .2s;}
-      .pc.visible{opacity:1;transform:translateY(0);}
-      .pc.visible:hover{transform:translateY(-2px);}
-      .pc.exp{transform:none!important;}
+      @keyframes slideUpIn{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+      .scard{animation:slideUpIn .4s ease both;}
+      .scard:nth-child(1){animation-delay:.05s;} .scard:nth-child(2){animation-delay:.1s;}
+      .scard:nth-child(3){animation-delay:.15s;} .scard:nth-child(4){animation-delay:.2s;}
+      .scard:nth-child(5){animation-delay:.25s;} .scard:nth-child(6){animation-delay:.3s;}
+      .fade-up{animation:slideUpIn .5s ease both;}
+      .pc{animation:slideUpIn .45s ease both;transition:background .2s,border-color .2s,transform .2s;}
+      .pc:nth-child(1){animation-delay:.1s;} .pc:nth-child(2){animation-delay:.16s;}
+      .pc:nth-child(3){animation-delay:.22s;} .pc:nth-child(4){animation-delay:.28s;}
+      .pc:nth-child(5){animation-delay:.34s;} .pc:nth-child(6){animation-delay:.4s;}
+      .pc:nth-child(7){animation-delay:.46s;} .pc:nth-child(8){animation-delay:.52s;}
+      .pc:nth-child(9){animation-delay:.58s;} .pc:nth-child(10){animation-delay:.64s;}
+      .pc:hover{transform:translateY(-2px);}
+      .pc.exp{transform:none!important;animation:none;}
       @keyframes celebPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,184,75,0);}50%{box-shadow:0 0 28px 6px rgba(232,184,75,.35);}}
       @keyframes perfectPulse{0%,100%{box-shadow:0 0 0 0 rgba(91,173,143,0);}50%{box-shadow:0 0 36px 10px rgba(91,173,143,.4);}}
       @keyframes starFloat{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-40px) scale(.3);}}
@@ -681,21 +687,7 @@ repaid in every living face.`;
 
       const themeLabel = {"morning":"🌅 Morning","afternoon":"☀️ Afternoon","evening":"🌆 Evening","night":"🌙 Night"}[theme]||"";
 
-      // Staggered entrance for summary cards
-      useEffect(() => {
-        if (appState !== "ready") return;
-        setTimeout(() => {
-          document.querySelectorAll('.scard').forEach((el,i) => {
-            setTimeout(() => el.classList.add('visible'), i * 80);
-          });
-          document.querySelectorAll('.pc').forEach((el,i) => {
-            setTimeout(() => el.classList.add('visible'), i * 60 + 200);
-          });
-          document.querySelectorAll('.fade-up').forEach((el,i) => {
-            setTimeout(() => el.classList.add('visible'), i * 100);
-          });
-        }, 100);
-      }, [appState, tab]);
+      // Entrance animations handled by pure CSS @keyframes — no JS needed
 
       // Milestone detection
       useEffect(() => {
