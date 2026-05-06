@@ -1004,7 +1004,7 @@ repaid in every living face.`;
                     </div>
                     <div className="vtog">
                       {[["mtd","MTD"],["alltime","All Time"]].map(([k,l])=>(
-                        <button key={k} className={`vtbtn${viewMode===k?" on":""}`} onClick={()=>{setViewMode(k);setExpandedPerson(null);}}>{l}</button>
+                        <button key={k} className={`vtbtn${viewMode===k?" on":""}`} onClick={()=>{setViewMode(k);setExpandedPerson(null);setDashKey(d=>d+1);}}>{l}</button>
                       ))}
                     </div>
                   </div>
@@ -1018,7 +1018,7 @@ repaid in every living face.`;
                       [weightedAvgPledge+" min","Avg Daily Pledge"],
                       [groupMtdTarget.toLocaleString(),"Group MTD Target"],
                     ].map(([val,lbl,col],i)=>(
-                      <div key={i} className={`scard anim-pop anim-delay-${Math.min(i+1,6)}`}>
+                      <div key={String(i)+viewMode} className={`scard anim-pop anim-delay-${Math.min(i+1,6)}`}>
                         <div className="sval" style={col?{color:col}:{}}>{val}</div>
                         <div className="slbl">{lbl}</div>
                       </div>
@@ -1048,7 +1048,7 @@ repaid in every living face.`;
                       const dailyData=isExp?getDailyData(p.entries):[];
                       const logEntries=[...p.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
                       return (
-                        <div key={p.name}
+                        <div key={p.name+viewMode}
                           className={`pc${isExp?" exp":""}${pct(p.total,p.target)>=100?" celeb":""} anim-slide-up anim-delay-${Math.min(idx+1,6)}`}
                           onClick={()=>{setExpandedPerson(isExp?null:p.name);setDetailTab("chart");}}>
                           <div className="pctop">
