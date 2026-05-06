@@ -812,25 +812,37 @@ repaid in every living face.`;
       // Dashboard calculations
       const getPersonStats = useCallback((name,idx)=>{
         const color=PALETTE[idx%PALETTE.length];
-        let mine,target,elapsed,campaignStart;
+        let mine,target,elapsed,campaignStart,firstEntryDate=null;
+
+        // Personal target — use stored challenge, fall back to latest entry's challenge
+        const allMine=entries.filter(e=>e.name===name);
+        const latestEntry=[...allMine].sort((a,b)=>b.date.localeCompare(a.date))[0];
+        const personalTarget=challenges[name]||(latestEntry&&[30,45,60].includes(latestEntry.challenge)?latestEntry.challenge:60);
+
         if (viewMode==="mtd"){
           campaignStart=getCampaignStart(campaigns,viewYear,viewMonth);
           elapsed=daysElapsedFromStart(campaignStart);
-          // Only entries on or after campaign start
-          mine=entries.filter(e=>{
+          mine=allMine.filter(e=>{
             const d=new Date(e.date+"T00:00:00");
-            return e.name===name && d>=campaignStart &&
-              d.getFullYear()===viewYear && d.getMonth()===viewMonth;
+            return d>=campaignStart && d.getFullYear()===viewYear && d.getMonth()===viewMonth;
           });
+          target=elapsed*personalTarget;
         } else {
-          campaignStart=new Date(0); // all time — no filter
-          mine=entries.filter(e=>e.name===name);
-          elapsed=daysElapsed(now.getFullYear(),now.getMonth());
+          // ALL TIME — record of what was done, no pledge target
+          mine=allMine;
+          if (mine.length>0){
+            const sorted=[...mine].sort((a,b)=>a.date.localeCompare(b.date));
+            firstEntryDate=new Date(sorted[0].date+"T00:00:00");
+            firstEntryDate.setHours(0,0,0,0);
+            const today=new Date(); today.setHours(0,0,0,0);
+            elapsed=Math.floor((today-firstEntryDate)/86400000)+1;
+          } else {
+            elapsed=0;
+          }
+          target=0; // no target for all-time — pledge varies month to month
+          campaignStart=firstEntryDate||new Date(0);
         }
-        const latestEntry=[...mine].sort((a,b)=>b.date.localeCompare(a.date))[0];
-        const personalTarget=challenges[name]||(latestEntry&&[30,45,60].includes(latestEntry.challenge)?latestEntry.challenge:60);
-        target=elapsed*personalTarget;
-        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget,campaignStart};
+        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget,campaignStart,firstEntryDate};
       },[entries,viewYear,viewMonth,viewMode,campaigns,challenges]);
 
       const allPersonData=names.map((n,i)=>getPersonStats(n,i));
@@ -843,7 +855,7 @@ repaid in every living face.`;
       // Group MTD target = sum of all individual targets
       const groupMtdTarget=totalTarget;
       const campStart=getCampaignStart(campaigns,viewYear,viewMonth);
-      const elapsed=viewMode==="mtd"?daysElapsedFromStart(campStart):daysElapsed(now.getFullYear(),now.getMonth());
+      const elapsed=viewMode==="mtd"?daysElapsedFromStart(campStart):0; // all-time elapsed is per-person
       const isCurrent=viewYear===now.getFullYear()&&viewMonth===now.getMonth();
 
       const prevMonth=()=>{if(viewMonth===0){setViewYear(y=>y-1);setViewMonth(11);}else setViewMonth(m=>m-1);setExpandedPerson(null);};
@@ -1010,14 +1022,23 @@ repaid in every living face.`;
                   </div>
 
                   <div className="sstrip" key={dashKey}>
-                    {[
+                    {(viewMode==="mtd" ? [
                       [totalMins.toLocaleString(),"Total Mins Chanted"],
                       [pct(totalMins,groupMtdTarget)+"%","Group Achievement",statusColor(totalMins,groupMtdTarget)],
                       [onTrack,"On Track (≥80%)","#5BAD8F"],
-                      ...(viewMode==="mtd"?[[elapsed,"Days Since "+campStart.toLocaleDateString("en-GB",{day:"numeric",month:"short"})]]:[]),
+                      [elapsed,"Days Since "+campStart.toLocaleDateString("en-GB",{day:"numeric",month:"short"})],
                       [weightedAvgPledge+" min","Avg Daily Pledge"],
                       [groupMtdTarget.toLocaleString(),"Group MTD Target"],
-                    ].map(([val,lbl,col],i)=>(
+                    ] : [
+                      [totalMins.toLocaleString(),"Total Mins Chanted"],
+                      [allPersonData.reduce((s,p)=>s+[...new Set(p.entries.map(e=>e.date))].length,0),"Total Days Logged"],
+                      [allPersonData.filter(p=>p.entries.length>0).length,"Active Members"],
+                      [allPersonData.reduce((s,p)=>{
+                        const d=[...new Set(p.entries.map(e=>e.date))].length;
+                        return s+(d>0?Math.round(p.total/d):0);
+                      },0),"Group Avg / Day"],
+                      [Math.round(totalMins/(allPersonData.filter(p=>p.entries.length>0).length||1)),"Avg Per Member"],
+                    ]).map(([val,lbl,col],i)=>(
                       <div key={String(i)+viewMode} className={`scard anim-pop anim-delay-${Math.min(i+1,6)}`}>
                         <div className="sval" style={col?{color:col}:{}}>{val}</div>
                         <div className="slbl">{lbl}</div>
@@ -1056,7 +1077,7 @@ repaid in every living face.`;
                             <div className="pinfo">
                               <div className="pname">{p.name}</div>
                               <div className="pmins">{p.total.toLocaleString()} / {p.target.toLocaleString()} mins</div>
-                              <div className="pmins">{viewMode==="mtd"?`${elapsed} days × ${p.personalTarget} min target`:`All time · ${[...new Set(p.entries.map(e=>e.date))].length} logged days`}
+                              <div className="pmins">{viewMode==="mtd"?`${elapsed} days × ${p.personalTarget} min target`:p.firstEntryDate?`Since ${p.firstEntryDate.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} · ${p.elapsed} days`:`${[...new Set(p.entries.map(e=>e.date))].length} logged days`}
                                 <span style={{marginLeft:6,fontSize:9,background:p.personalTarget===30?"rgba(94,155,191,.2)":"rgba(232,184,75,.15)",
                                   color:p.personalTarget===30?"#5E9BBF":"#E8B84B",borderRadius:20,padding:"1px 7px",border:`1px solid ${p.personalTarget===30?"rgba(94,155,191,.3)":"rgba(232,184,75,.25)"}`}}>
                                   {p.personalTarget} min challenge
@@ -1064,19 +1085,43 @@ repaid in every living face.`;
                               </div>
                             </div>
                             <div className="pbadge">
-                              <div className="pbadge-pct" style={{color:sc}}>{achievement}%</div>
-                              <div className="pbadge-lbl" style={{color:sc}}>{statusLabel(p.total,p.target)}</div>
+                              {viewMode==="mtd" ? (
+                                <>
+                                  <div className="pbadge-pct" style={{color:sc}}>{achievement}%</div>
+                                  <div className="pbadge-lbl" style={{color:sc}}>{statusLabel(p.total,p.target)}</div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="pbadge-pct" style={{color:"#E8B84B",fontSize:15}}>{p.total.toLocaleString()}</div>
+                                  <div className="pbadge-lbl" style={{color:"rgba(232,184,75,.5)"}}>total mins</div>
+                                </>
+                              )}
                             </div>
                           </div>
-                          <div className="pbar">
-                            <div className="pfill" style={{
-                              '--bar-w':`${Math.min(achievement,100)}%`,
-                              width:`${Math.min(achievement,100)}%`,
-                              background:`linear-gradient(90deg,${sc}88,${sc})`,
-                              animation:'barGrow .8s cubic-bezier(.4,0,.2,1) both',
-                              animationDelay:`${idx*0.06}s`
-                            }}/>
-                          </div>
+                          {viewMode==="mtd" ? (
+                            <div className="pbar">
+                              <div className="pfill" style={{
+                                width:`${Math.min(achievement,100)}%`,
+                                background:`linear-gradient(90deg,${sc}88,${sc})`,
+                              }}/>
+                            </div>
+                          ) : (
+                            // All time — consistency bar: days logged / days elapsed
+                            <div style={{marginTop:10,display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{flex:1,height:4,background:"rgba(255,255,255,.07)",borderRadius:4,overflow:"hidden"}}>
+                                {(() => {
+                                  const daysLogged=[...new Set(p.entries.map(e=>e.date))].length;
+                                  const consistency=p.elapsed>0?Math.min(Math.round((daysLogged/p.elapsed)*100),100):0;
+                                  return <div style={{height:"100%",borderRadius:4,width:`${consistency}%`,
+                                    background:"linear-gradient(90deg,rgba(155,108,196,.6),#9B6CC4)",
+                                    transition:"width .9s cubic-bezier(.4,0,.2,1)"}}/>;
+                                })()}
+                              </div>
+                              <span style={{fontSize:10,color:"rgba(237,232,245,.35)",whiteSpace:"nowrap"}}>
+                                {[...new Set(p.entries.map(e=>e.date))].length} days logged
+                              </span>
+                            </div>
+                          )}
 
                           {isExp && (
                             <div className="detail" onClick={e=>e.stopPropagation()}>
