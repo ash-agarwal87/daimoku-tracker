@@ -194,108 +194,166 @@ repaid in every living face.`;
     function CollectiveMountain({ groupPct, totalMins, groupTarget }) {
       const pctCapped = Math.min(groupPct, 100);
 
-      // Mountain waypoints: base(100%), camp1(75%), camp2(50%), camp3(25%), summit(0%)
-      // SVG coords: summit at top, base at bottom
       const WAYPOINTS = [
-        { pct: 0,   y: 98,  label: "Base Camp",  emoji: "⛺" },
-        { pct: 25,  y: 78,  label: "Camp I",      emoji: "🏕️" },
-        { pct: 50,  y: 55,  label: "Halfway",     emoji: "🔥" },
-        { pct: 75,  y: 32,  label: "Camp III",    emoji: "🌟" },
-        { pct: 100, y: 10,  label: "Summit",      emoji: "🪷" },
+        { pct: 0,   label: "Base Camp", emoji: "⛺", cx: 50, cy: 130 },
+        { pct: 25,  label: "Camp I",    emoji: "🏕️", cx: 42, cy: 102 },
+        { pct: 50,  label: "Halfway",   emoji: "🔥", cx: 50, cy: 76  },
+        { pct: 75,  label: "Camp III",  emoji: "🌟", cx: 50, cy: 50  },
+        { pct: 100, label: "Summit",    emoji: "🪷", cx: 50, cy: 24  },
       ];
 
-      // Interpolate marker Y position based on group %
-      const getMarkerY = (pct) => {
+      // Interpolate marker position along Mt Fuji path
+      const getMarkerPos = (pct) => {
         for (let i = 0; i < WAYPOINTS.length - 1; i++) {
           const lo = WAYPOINTS[i], hi = WAYPOINTS[i+1];
           if (pct >= lo.pct && pct <= hi.pct) {
             const t = (pct - lo.pct) / (hi.pct - lo.pct);
-            return lo.y + (hi.y - lo.y) * t;
+            return { cx: lo.cx + (hi.cx-lo.cx)*t, cy: lo.cy + (hi.cy-lo.cy)*t };
           }
         }
-        return WAYPOINTS[WAYPOINTS.length-1].y;
+        return { cx: 50, cy: 24 };
       };
 
-      const markerY = getMarkerY(pctCapped);
-      const markerX = 50; // centre of SVG
-
-      // Snow line — appears above 75%
-      const snowOpacity = pctCapped >= 75 ? Math.min((pctCapped - 75) / 25, 1) : 0;
-
-      // Current waypoint label
+      const markerPos = getMarkerPos(pctCapped);
+      const snowOpacity = pctCapped >= 75 ? Math.min((pctCapped-75)/25, 1) : 0;
       const currentWP = [...WAYPOINTS].reverse().find(w => pctCapped >= w.pct) || WAYPOINTS[0];
-      const nextWP    = WAYPOINTS.find(w => w.pct > pctCapped);
+      const nextWP = WAYPOINTS.find(w => w.pct > pctCapped);
 
       return (
         <div className="mountain-wrap">
-          <div className="mountain-label">🏔️ District Mountain — {currentWP.emoji} {currentWP.label}</div>
-          <svg className="mountain-svg" viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
-            {/* Sky gradient */}
+          <div className="mountain-label">🗻 District Mountain — {currentWP.emoji} {currentWP.label}</div>
+          <svg className="mountain-svg" viewBox="0 0 100 155" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0a0820" stopOpacity="1"/>
-                <stop offset="100%" stopColor="#1a1440" stopOpacity="1"/>
+              <linearGradient id="fujiSky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#060412"/>
+                <stop offset="60%" stopColor="#0d0a22"/>
+                <stop offset="100%" stopColor="#1a1438"/>
               </linearGradient>
-              <linearGradient id="mountainGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#4a3a6a"/>
-                <stop offset="60%" stopColor="#2a2040"/>
-                <stop offset="100%" stopColor="#1a1430"/>
+              <linearGradient id="fujiBody" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#5a4880"/>
+                <stop offset="40%" stopColor="#3a2e60"/>
+                <stop offset="100%" stopColor="#1e1840"/>
               </linearGradient>
-              <linearGradient id="snowGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity={0.9 * snowOpacity}/>
-                <stop offset="100%" stopColor="#c8d8f0" stopOpacity={0.4 * snowOpacity}/>
+              <linearGradient id="fujiShadow" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#120e28" stopOpacity="0.7"/>
+                <stop offset="50%" stopColor="#120e28" stopOpacity="0"/>
+                <stop offset="100%" stopColor="#120e28" stopOpacity="0.4"/>
               </linearGradient>
-              <linearGradient id="pathGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#E8B84B"/>
-                <stop offset="100%" stopColor="#C97D3A"/>
+              <linearGradient id="fujiSnow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#eef4ff" stopOpacity={snowOpacity}/>
+                <stop offset="100%" stopColor="#c8d8f0" stopOpacity={snowOpacity*0.3}/>
               </linearGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="1.5" result="blur"/>
+              <linearGradient id="fujiBase" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1e1840"/>
+                <stop offset="100%" stopColor="#0d0a1e"/>
+              </linearGradient>
+              <filter id="fujiGlow">
+                <feGaussianBlur stdDeviation="1.2" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="softGlow">
+                <feGaussianBlur stdDeviation="2" result="blur"/>
                 <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
             </defs>
 
-            {/* Background */}
-            <rect width="100" height="110" fill="url(#skyGrad)"/>
+            {/* Sky */}
+            <rect width="100" height="155" fill="url(#fujiSky)"/>
 
             {/* Stars */}
-            {[[15,8],[30,5],[70,12],[85,7],[92,20],[8,25],[55,4],[40,18]].map(([x,y],i)=>(
-              <circle key={i} cx={x} cy={y} r="0.4"
-                fill="white" opacity={0.3+Math.sin(i*1.3)*0.3}/>
+            {[[8,6],[20,10],[35,4],[65,8],[80,5],[92,12],[15,18],[88,20],[50,3],[72,15]].map(([x,y],i)=>(
+              <circle key={i} cx={x} cy={y} r={0.3+Math.sin(i)*0.2}
+                fill="white" opacity={0.2+Math.sin(i*1.7)*0.3}/>
             ))}
 
-            {/* Mountain body */}
-            <polygon points="50,8 12,102 88,102" fill="url(#mountainGrad)"/>
+            {/* Moon */}
+            <circle cx="82" cy="14" r="3.5" fill="rgba(255,240,200,0.12)"/>
+            <circle cx="83.5" cy="13" r="3" fill="url(#fujiSky)"/>
 
-            {/* Snow cap */}
-            <polygon points="50,8 38,32 62,32" fill="url(#snowGrad)"/>
+            {/* Mt Fuji body — characteristic wide gentle slopes with slightly concave sides */}
+            {/* Main mountain silhouette — organic Fuji shape */}
+            <path d={
+              "M 50 22 " +           // Summit
+              "C 46 26, 40 32, 36 38 " +   // Left upper slope (gentle)
+              "C 32 44, 28 50, 24 58 " +   // Left mid slope
+              "C 18 68, 10 80, 2 100 " +   // Left lower flare (Fuji's wide base)
+              "L 2 138 L 98 138 " +        // Base line
+              "L 98 100 " +               // Right base
+              "C 90 80, 82 68, 76 58 " +   // Right lower flare
+              "C 72 50, 68 44, 64 38 " +   // Right mid slope
+              "C 60 32, 54 26, 50 22 Z"    // Right upper slope back to summit
+            } fill="url(#fujiBody)"/>
 
-            {/* Waypoint dots */}
+            {/* Shadow on left face */}
+            <path d={
+              "M 50 22 C 46 26, 40 32, 36 38 C 32 44, 28 50, 24 58 C 18 68, 10 80, 2 100 L 2 138 L 50 138 Z"
+            } fill="url(#fujiShadow)"/>
+
+            {/* Base/foothills — wider flat spread */}
+            <ellipse cx="50" cy="138" rx="48" ry="8" fill="url(#fujiBase)"/>
+
+            {/* Trees/forest line at base */}
+            {[-38,-28,-18,-8,0,8,18,28,38].map((offset,i)=>(
+              <g key={i} transform={`translate(${50+offset},${128+Math.abs(offset)*0.1})`}>
+                <polygon points="0,-5 -2.5,0 2.5,0" fill="rgba(40,60,30,0.6)"/>
+              </g>
+            ))}
+
+            {/* Snow cap — Fuji's distinctive snow with slight draping */}
+            <path d={
+              "M 50 22 " +
+              "C 48 25, 44 28, 41 31 " +
+              "C 44 30, 47 29, 50 29 " +
+              "C 53 29, 56 30, 59 31 " +
+              "C 56 28, 52 25, 50 22 Z"
+            } fill="url(#fujiSnow)" opacity={0.9}/>
+
+            {/* Snow drape — wider secondary snow line */}
+            <path d={
+              "M 41 31 C 38 33, 35 35, 33 37 C 36 36, 39 35, 42 34 " +
+              "C 44 33, 47 32, 50 32 C 53 32, 56 33, 58 34 " +
+              "C 61 35, 64 36, 67 37 C 65 35, 62 33, 59 31 " +
+              "C 56 30, 53 29, 50 29 C 47 29, 44 30, 41 31 Z"
+            } fill="url(#fujiSnow)" opacity={0.6}/>
+
+            {/* Crater at summit */}
+            <ellipse cx="50" cy="23" rx="3" ry="1.5"
+              fill="rgba(8,6,20,0.6)" stroke="rgba(255,255,255,0.1)" strokeWidth="0.3"/>
+
+            {/* Waypoint markers along the slope */}
             {WAYPOINTS.map((wp,i) => {
-              const wx = 50 + (i % 2 === 0 ? 0 : (i%4===1?8:-8));
               const reached = pctCapped >= wp.pct;
               return (
                 <g key={i}>
-                  <circle cx={wx} cy={wp.y} r="1.8"
-                    fill={reached?"#E8B84B":"rgba(255,255,255,0.15)"}
-                    stroke={reached?"#F5D47A":"rgba(255,255,255,0.2)"}
+                  <circle cx={wp.cx} cy={wp.cy} r="2.2"
+                    fill={reached ? "#E8B84B" : "rgba(255,255,255,0.12)"}
+                    stroke={reached ? "#F5D47A" : "rgba(255,255,255,0.18)"}
                     strokeWidth="0.5"
-                    filter={reached?"url(#glow)":"none"}/>
-                  <text x={wx+(wx>50?3:-3)} y={wp.y+0.6}
-                    fontSize="3.5" fill="rgba(237,232,245,0.5)"
-                    textAnchor={wx>50?"start":"end"}>{wp.emoji}</text>
+                    filter={reached ? "url(#fujiGlow)" : "none"}/>
+                  {reached && (
+                    <circle cx={wp.cx} cy={wp.cy} r="4"
+                      fill="rgba(232,184,75,0.15)" stroke="none"/>
+                  )}
+                  <text x={wp.cx+3.5} y={wp.cy+1}
+                    fontSize="4" fill={reached?"rgba(237,232,245,0.7)":"rgba(237,232,245,0.25)"}
+                    textAnchor="start">{wp.emoji}</text>
                 </g>
               );
             })}
 
-            {/* Climber marker */}
-            <g className="camp-marker" style={{transform:`translateY(${markerY-50}px)`}}>
-              <circle cx={markerX} cy="50" r="3"
-                fill="#E8B84B" stroke="#F5D47A" strokeWidth="0.8"
-                filter="url(#glow)" opacity="0.95"/>
-              <text x={markerX} y="52" fontSize="4"
-                textAnchor="middle" fill="white">🧗</text>
-            </g>
+            {/* Climber marker — glowing dot moving up the mountain */}
+            <circle cx={markerPos.cx} cy={markerPos.cy} r="4"
+              fill="rgba(232,184,75,0.25)" stroke="none"
+              filter="url(#softGlow)"/>
+            <circle cx={markerPos.cx} cy={markerPos.cy} r="2.5"
+              fill="#E8B84B" stroke="#FFF8DC" strokeWidth="0.6"
+              filter="url(#fujiGlow)"/>
+            <text x={markerPos.cx} y={markerPos.cy+1.2}
+              fontSize="3.5" textAnchor="middle" fill="white">🧗</text>
+
+            {/* Reflection in water at base */}
+            <ellipse cx="50" cy="148" rx="30" ry="3"
+              fill="rgba(90,72,128,0.15)" stroke="rgba(90,72,128,0.1)" strokeWidth="0.3"/>
           </svg>
 
           <div className="mountain-pct">{groupPct}%</div>
@@ -1573,7 +1631,7 @@ repaid in every living face.`;
                 </div>
               )}
 
-                            {/* ══ ADMIN ══ */}}
+              {/* ══ ADMIN ══ */}
               {tab==="admin" && (
                 <div className="card">
                   <div className="sec">Monthly Pledge</div>
