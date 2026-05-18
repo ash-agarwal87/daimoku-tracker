@@ -194,177 +194,189 @@ repaid in every living face.`;
     function CollectiveMountain({ groupPct, totalMins, groupTarget }) {
       const pctCapped = Math.min(groupPct, 100);
 
+      // Waypoints along Fuji slope — cx,cy in SVG coords (viewBox 0 0 200 160)
       const WAYPOINTS = [
-        { pct: 0,   label: "Base Camp", emoji: "⛺", cx: 50, cy: 130 },
-        { pct: 25,  label: "Camp I",    emoji: "🏕️", cx: 42, cy: 102 },
-        { pct: 50,  label: "Halfway",   emoji: "🔥", cx: 50, cy: 76  },
-        { pct: 75,  label: "Camp III",  emoji: "🌟", cx: 50, cy: 50  },
-        { pct: 100, label: "Summit",    emoji: "🪷", cx: 50, cy: 24  },
+        { pct: 0,   label: "Base Camp", emoji: "⛺", cx: 100, cy: 148 },
+        { pct: 25,  label: "Camp I",    emoji: "🏕️", cx: 80,  cy: 118 },
+        { pct: 50,  label: "Halfway",   emoji: "🔥", cx: 100, cy: 90  },
+        { pct: 75,  label: "Camp III",  emoji: "🌟", cx: 100, cy: 62  },
+        { pct: 100, label: "Summit",    emoji: "🪷", cx: 100, cy: 34  },
       ];
 
-      // Interpolate marker position along Mt Fuji path
       const getMarkerPos = (pct) => {
         for (let i = 0; i < WAYPOINTS.length - 1; i++) {
           const lo = WAYPOINTS[i], hi = WAYPOINTS[i+1];
           if (pct >= lo.pct && pct <= hi.pct) {
-            const t = (pct - lo.pct) / (hi.pct - lo.pct);
-            return { cx: lo.cx + (hi.cx-lo.cx)*t, cy: lo.cy + (hi.cy-lo.cy)*t };
+            const t = (pct-lo.pct)/(hi.pct-lo.pct);
+            return { cx: lo.cx+(hi.cx-lo.cx)*t, cy: lo.cy+(hi.cy-lo.cy)*t };
           }
         }
-        return { cx: 50, cy: 24 };
+        return WAYPOINTS[WAYPOINTS.length-1];
       };
 
-      const markerPos = getMarkerPos(pctCapped);
-      const snowOpacity = pctCapped >= 75 ? Math.min((pctCapped-75)/25, 1) : 0;
-      const currentWP = [...WAYPOINTS].reverse().find(w => pctCapped >= w.pct) || WAYPOINTS[0];
-      const nextWP = WAYPOINTS.find(w => w.pct > pctCapped);
+      const markerPos  = getMarkerPos(pctCapped);
+      const snowAmt    = Math.min(pctCapped/100, 1);  // snow grows as climber ascends
+      const currentWP  = [...WAYPOINTS].reverse().find(w => pctCapped >= w.pct) || WAYPOINTS[0];
+      const nextWP     = WAYPOINTS.find(w => w.pct > pctCapped);
 
       return (
         <div className="mountain-wrap">
-          <div className="mountain-label">🗻 District Mountain — {currentWP.emoji} {currentWP.label}</div>
-          <svg className="mountain-svg" viewBox="0 0 100 155" xmlns="http://www.w3.org/2000/svg">
+          <svg className="mountain-svg" viewBox="0 0 200 160" preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <linearGradient id="fujiSky" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#060412"/>
-                <stop offset="60%" stopColor="#0d0a22"/>
-                <stop offset="100%" stopColor="#1a1438"/>
+              {/* Sky — dusk purple-blue like the photo backdrop */}
+              <linearGradient id="mSky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stopColor="#1a2a4a"/>
+                <stop offset="50%"  stopColor="#2a3a6a"/>
+                <stop offset="100%" stopColor="#1e2d55"/>
               </linearGradient>
-              <linearGradient id="fujiBody" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#5a4880"/>
-                <stop offset="40%" stopColor="#3a2e60"/>
-                <stop offset="100%" stopColor="#1e1840"/>
+              {/* Mountain body — blue-purple like the photo */}
+              <linearGradient id="mBody" x1="0" y1="0" x2="0.3" y2="1">
+                <stop offset="0%"   stopColor="#6070b0"/>
+                <stop offset="40%"  stopColor="#4a5a9a"/>
+                <stop offset="100%" stopColor="#2a3870"/>
               </linearGradient>
-              <linearGradient id="fujiShadow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#120e28" stopOpacity="0.7"/>
-                <stop offset="50%" stopColor="#120e28" stopOpacity="0"/>
-                <stop offset="100%" stopColor="#120e28" stopOpacity="0.4"/>
+              {/* Right face slightly lighter */}
+              <linearGradient id="mBodyR" x1="1" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stopColor="#7080c0"/>
+                <stop offset="100%" stopColor="#3a4880"/>
               </linearGradient>
-              <linearGradient id="fujiSnow" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#eef4ff" stopOpacity={snowOpacity}/>
-                <stop offset="100%" stopColor="#c8d8f0" stopOpacity={snowOpacity*0.3}/>
+              {/* Snow — bright white like photo */}
+              <linearGradient id="mSnow" x1="0.3" y1="0" x2="0.7" y2="1">
+                <stop offset="0%"   stopColor="#ffffff"/>
+                <stop offset="40%"  stopColor="#e8eeff"/>
+                <stop offset="100%" stopColor="#c0d0f0"/>
               </linearGradient>
-              <linearGradient id="fujiBase" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1e1840"/>
-                <stop offset="100%" stopColor="#0d0a1e"/>
+              {/* Lake reflection */}
+              <linearGradient id="mLake" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stopColor="#2a4080" stopOpacity="0.6"/>
+                <stop offset="100%" stopColor="#1a2850" stopOpacity="0.3"/>
               </linearGradient>
-              <filter id="fujiGlow">
-                <feGaussianBlur stdDeviation="1.2" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              {/* Shadow on left face */}
+              <linearGradient id="mShadow" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stopColor="#1a2040" stopOpacity="0.5"/>
+                <stop offset="100%" stopColor="#1a2040" stopOpacity="0"/>
+              </linearGradient>
+              <filter id="mGlow">
+                <feGaussianBlur stdDeviation="1" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
-              <filter id="softGlow">
-                <feGaussianBlur stdDeviation="2" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              <filter id="mSoftGlow">
+                <feGaussianBlur stdDeviation="2.5" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
             </defs>
 
             {/* Sky */}
-            <rect width="100" height="155" fill="url(#fujiSky)"/>
+            <rect width="200" height="160" fill="url(#mSky)"/>
 
-            {/* Stars */}
-            {[[8,6],[20,10],[35,4],[65,8],[80,5],[92,12],[15,18],[88,20],[50,3],[72,15]].map(([x,y],i)=>(
-              <circle key={i} cx={x} cy={y} r={0.3+Math.sin(i)*0.2}
-                fill="white" opacity={0.2+Math.sin(i*1.7)*0.3}/>
+            {/* Distant clouds / haze */}
+            <ellipse cx="100" cy="38" rx="60" ry="8" fill="rgba(200,220,255,0.06)"/>
+            <ellipse cx="30"  cy="45" rx="25" ry="5" fill="rgba(200,220,255,0.04)"/>
+            <ellipse cx="170" cy="42" rx="20" ry="4" fill="rgba(200,220,255,0.04)"/>
+
+            {/* ── MOUNTAIN BODY ── */}
+            {/* Fuji's characteristic wide convex sweep — right face */}
+            <path d="M 100 32 C 108 42, 118 55, 128 70 C 140 88, 154 108, 168 128 L 200 128 L 200 160 L 0 160 L 0 128 L 32 128 C 46 108, 60 88, 72 70 C 82 55, 92 42, 100 32 Z"
+              fill="url(#mBody)"/>
+
+            {/* Left face shadow */}
+            <path d="M 100 32 C 92 42, 82 55, 72 70 C 60 88, 46 108, 32 128 L 100 128 Z"
+              fill="url(#mShadow)"/>
+
+            {/* Right face highlight */}
+            <path d="M 100 32 C 108 42, 118 55, 128 70 C 140 88, 154 108, 168 128 L 100 128 Z"
+              fill="url(#mBodyR)" opacity="0.4"/>
+
+            {/* ── SNOW CAP ── grows from just summit to large cap as % climbs */}
+            {/* Snow line rises with progress */}
+            {(() => {
+              const snowBottomY = 130 - snowAmt * 80; // from y=130 up to y=50
+              const snowWidth   = (130 - snowBottomY) * 0.95;
+              return (
+                <path d={`M 100 32 C ${100-snowWidth*0.3} ${32+snowWidth*0.4}, ${100-snowWidth*0.6} ${32+snowWidth*0.7}, ${100-snowWidth} ${snowBottomY} C ${100-snowWidth*0.5} ${snowBottomY-4}, 100 ${snowBottomY-6}, 100 ${snowBottomY-6} C 100 ${snowBottomY-6}, ${100+snowWidth*0.5} ${snowBottomY-4}, ${100+snowWidth} ${snowBottomY} C ${100+snowWidth*0.6} ${32+snowWidth*0.7}, ${100+snowWidth*0.3} ${32+snowWidth*0.4}, 100 32 Z`}
+                  fill="url(#mSnow)" opacity="0.92"/>
+              );
+            })()}
+
+            {/* Snow shadow streaks — like the photo showing mountain ridges through snow */}
+            {snowAmt > 0.3 && (
+              <>
+                <line x1="88"  y1="50"  x2="76"  y2="90"  stroke="rgba(150,170,220,0.25)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="112" y1="50"  x2="126" y2="88"  stroke="rgba(150,170,220,0.2)"  strokeWidth="1"   strokeLinecap="round"/>
+                <line x1="100" y1="40"  x2="94"  y2="75"  stroke="rgba(130,150,210,0.15)" strokeWidth="1"   strokeLinecap="round"/>
+              </>
+            )}
+
+            {/* ── LAKE ── */}
+            <rect x="0" y="130" width="200" height="30" fill="url(#mLake)"/>
+            {/* Lake surface shimmer */}
+            {[20,60,100,140,180].map((x,i)=>(
+              <line key={i} x1={x-8} y1={134+i%3} x2={x+8} y2={134+i%3}
+                stroke="rgba(150,180,255,0.15)" strokeWidth="0.5"/>
             ))}
+            {/* Mountain reflection in lake */}
+            <path d="M 100 130 C 92 136, 80 142, 65 148 C 75 148, 90 148, 100 148 C 110 148, 125 148, 135 148 C 120 142, 108 136, 100 130 Z"
+              fill="rgba(180,200,240,0.12)"/>
 
-            {/* Moon */}
-            <circle cx="82" cy="14" r="3.5" fill="rgba(255,240,200,0.12)"/>
-            <circle cx="83.5" cy="13" r="3" fill="url(#fujiSky)"/>
-
-            {/* Mt Fuji body — characteristic wide gentle slopes with slightly concave sides */}
-            {/* Main mountain silhouette — organic Fuji shape */}
-            <path d={
-              "M 50 22 " +           // Summit
-              "C 46 26, 40 32, 36 38 " +   // Left upper slope (gentle)
-              "C 32 44, 28 50, 24 58 " +   // Left mid slope
-              "C 18 68, 10 80, 2 100 " +   // Left lower flare (Fuji's wide base)
-              "L 2 138 L 98 138 " +        // Base line
-              "L 98 100 " +               // Right base
-              "C 90 80, 82 68, 76 58 " +   // Right lower flare
-              "C 72 50, 68 44, 64 38 " +   // Right mid slope
-              "C 60 32, 54 26, 50 22 Z"    // Right upper slope back to summit
-            } fill="url(#fujiBody)"/>
-
-            {/* Shadow on left face */}
-            <path d={
-              "M 50 22 C 46 26, 40 32, 36 38 C 32 44, 28 50, 24 58 C 18 68, 10 80, 2 100 L 2 138 L 50 138 Z"
-            } fill="url(#fujiShadow)"/>
-
-            {/* Base/foothills — wider flat spread */}
-            <ellipse cx="50" cy="138" rx="48" ry="8" fill="url(#fujiBase)"/>
-
-            {/* Trees/forest line at base */}
-            {[-38,-28,-18,-8,0,8,18,28,38].map((offset,i)=>(
-              <g key={i} transform={`translate(${50+offset},${128+Math.abs(offset)*0.1})`}>
-                <polygon points="0,-5 -2.5,0 2.5,0" fill="rgba(40,60,30,0.6)"/>
+            {/* ── SAKURA ── cherry blossom hints at edges */}
+            {[
+              [18,115],[14,122],[22,108],[10,118],
+              [182,112],[186,119],[178,107],[190,116]
+            ].map(([x,y],i)=>(
+              <g key={i}>
+                <circle cx={x} cy={y} r="2.2"
+                  fill={i<4?"rgba(255,182,193,0.5)":"rgba(255,182,193,0.45)"}/>
+                <circle cx={x+2} cy={y-1} r="1.5" fill="rgba(255,210,220,0.4)"/>
+                <circle cx={x-1} cy={y+2} r="1.8" fill="rgba(255,182,193,0.35)"/>
               </g>
             ))}
+            {/* Sakura branch lines */}
+            <path d="M 0 100 Q 12 108, 20 118 Q 14 112, 8 120" stroke="rgba(100,70,60,0.4)" strokeWidth="0.8" fill="none"/>
+            <path d="M 200 100 Q 188 108, 180 118 Q 186 112, 192 120" stroke="rgba(100,70,60,0.4)" strokeWidth="0.8" fill="none"/>
 
-            {/* Snow cap — Fuji's distinctive snow with slight draping */}
-            <path d={
-              "M 50 22 " +
-              "C 48 25, 44 28, 41 31 " +
-              "C 44 30, 47 29, 50 29 " +
-              "C 53 29, 56 30, 59 31 " +
-              "C 56 28, 52 25, 50 22 Z"
-            } fill="url(#fujiSnow)" opacity={0.9}/>
-
-            {/* Snow drape — wider secondary snow line */}
-            <path d={
-              "M 41 31 C 38 33, 35 35, 33 37 C 36 36, 39 35, 42 34 " +
-              "C 44 33, 47 32, 50 32 C 53 32, 56 33, 58 34 " +
-              "C 61 35, 64 36, 67 37 C 65 35, 62 33, 59 31 " +
-              "C 56 30, 53 29, 50 29 C 47 29, 44 30, 41 31 Z"
-            } fill="url(#fujiSnow)" opacity={0.6}/>
-
-            {/* Crater at summit */}
-            <ellipse cx="50" cy="23" rx="3" ry="1.5"
-              fill="rgba(8,6,20,0.6)" stroke="rgba(255,255,255,0.1)" strokeWidth="0.3"/>
-
-            {/* Waypoint markers along the slope */}
+            {/* ── WAYPOINT MARKERS ── */}
             {WAYPOINTS.map((wp,i) => {
               const reached = pctCapped >= wp.pct;
               return (
                 <g key={i}>
-                  <circle cx={wp.cx} cy={wp.cy} r="2.2"
-                    fill={reached ? "#E8B84B" : "rgba(255,255,255,0.12)"}
-                    stroke={reached ? "#F5D47A" : "rgba(255,255,255,0.18)"}
+                  {reached && <circle cx={wp.cx} cy={wp.cy} r="5" fill="rgba(232,184,75,0.2)"/>}
+                  <circle cx={wp.cx} cy={wp.cy} r="2"
+                    fill={reached?"#E8B84B":"rgba(255,255,255,0.2)"}
+                    stroke={reached?"#FFF8DC":"rgba(255,255,255,0.15)"}
                     strokeWidth="0.5"
-                    filter={reached ? "url(#fujiGlow)" : "none"}/>
-                  {reached && (
-                    <circle cx={wp.cx} cy={wp.cy} r="4"
-                      fill="rgba(232,184,75,0.15)" stroke="none"/>
-                  )}
-                  <text x={wp.cx+3.5} y={wp.cy+1}
-                    fontSize="4" fill={reached?"rgba(237,232,245,0.7)":"rgba(237,232,245,0.25)"}
+                    filter={reached?"url(#mGlow)":"none"}/>
+                  <text x={wp.cx+4} y={wp.cy+1.5} fontSize="5"
+                    fill={reached?"rgba(255,255,255,0.8)":"rgba(255,255,255,0.25)"}
                     textAnchor="start">{wp.emoji}</text>
                 </g>
               );
             })}
 
-            {/* Climber marker — glowing dot moving up the mountain */}
-            <circle cx={markerPos.cx} cy={markerPos.cy} r="4"
-              fill="rgba(232,184,75,0.25)" stroke="none"
-              filter="url(#softGlow)"/>
-            <circle cx={markerPos.cx} cy={markerPos.cy} r="2.5"
-              fill="#E8B84B" stroke="#FFF8DC" strokeWidth="0.6"
-              filter="url(#fujiGlow)"/>
-            <text x={markerPos.cx} y={markerPos.cy+1.2}
-              fontSize="3.5" textAnchor="middle" fill="white">🧗</text>
-
-            {/* Reflection in water at base */}
-            <ellipse cx="50" cy="148" rx="30" ry="3"
-              fill="rgba(90,72,128,0.15)" stroke="rgba(90,72,128,0.1)" strokeWidth="0.3"/>
+            {/* ── CLIMBER ── */}
+            <circle cx={markerPos.cx} cy={markerPos.cy} r="6"
+              fill="rgba(232,184,75,0.2)" filter="url(#mSoftGlow)"/>
+            <circle cx={markerPos.cx} cy={markerPos.cy} r="3"
+              fill="#E8B84B" stroke="#FFF8DC" strokeWidth="0.8"
+              filter="url(#mGlow)"/>
           </svg>
 
-          <div className="mountain-pct">{groupPct}%</div>
-          <div className="mountain-sub">
-            {nextWP
-              ? `${groupTarget-totalMins > 0 ? (groupTarget-totalMins).toLocaleString() : 0} mins to ${nextWP.emoji} ${nextWP.label}`
-              : "Summit reached! Nam-Myoho-Renge-Kyo 🪷"}
+          {/* Info bar below SVG */}
+          <div className="mountain-info">
+            <div>
+              <div className="mountain-label">🗻 {currentWP.emoji} {currentWP.label}</div>
+            </div>
+            <div className="mountain-pct">{groupPct}%</div>
+            <div className="mountain-sub">
+              {nextWP
+                ? `${(groupTarget-totalMins>0?(groupTarget-totalMins):0).toLocaleString()} mins to ${nextWP.emoji} ${nextWP.label}`
+                : "Summit! Nam-Myoho-Renge-Kyo 🪷"}
+            </div>
           </div>
         </div>
       );
     }
+
 
     // ═════════════════════════════════════════════════════════════════
     //  Chart.js Components
@@ -739,21 +751,18 @@ repaid in every living face.`;
       ::-webkit-scrollbar-thumb{background:rgba(232,184,75,.28);border-radius:4px;}
 
       /* ── MOUNTAIN ── */
-      .mountain-wrap{position:relative;width:100%;margin-bottom:18px;
-        padding:22px 20px 16px;border-radius:16px;overflow:hidden;
-        background:linear-gradient(180deg,rgba(8,6,20,0) 0%,rgba(8,6,20,.4) 100%);
+      .mountain-wrap{position:relative;width:100%;border-radius:16px;overflow:hidden;
         border:1px solid rgba(255,255,255,.07);}
-      .mountain-svg{width:100%;height:auto;display:block;}
-      .mountain-label{position:absolute;top:14px;left:50%;transform:translateX(-50%);
-        font-family:'Cinzel',serif;font-size:10px;letter-spacing:.22em;color:rgba(232,184,75,.6);
-        text-transform:uppercase;white-space:nowrap;}
-      .mountain-pct{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
-        font-family:'Cinzel',serif;font-size:28px;font-weight:700;
+      .mountain-svg{width:100%;height:180px;display:block;}
+      .mountain-info{display:flex;align-items:center;justify-content:space-between;
+        padding:10px 16px 12px;background:rgba(8,6,20,.6);}
+      .mountain-label{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.18em;
+        color:rgba(232,184,75,.6);text-transform:uppercase;}
+      .mountain-pct{font-family:'Cinzel',serif;font-size:22px;font-weight:700;
         background:linear-gradient(135deg,#F5D47A,#E8B84B);
         -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-      .mountain-sub{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
-        font-size:9px;color:rgba(237,232,245,.35);letter-spacing:.15em;text-transform:uppercase;
-        white-space:nowrap;}
+      .mountain-sub{font-size:9px;color:rgba(237,232,245,.35);letter-spacing:.1em;
+        text-transform:uppercase;text-align:right;max-width:160px;line-height:1.4;}
       .camp-marker{transition:all .8s cubic-bezier(.4,0,.2,1);}
 
       /* ── STUDY TAB ── */
