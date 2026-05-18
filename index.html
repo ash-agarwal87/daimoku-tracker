@@ -37,6 +37,39 @@
     const IKEDA_QUOTE  = "Each of us has within us a sun — a luminous, inextinguishable life force. When you chant, you are not calling upon something outside yourself. You are awakening what has always been there.";
     const PALETTE      = ["#E8B84B","#C97D3A","#9B6CC4","#5E9BBF","#E06B75","#5BAD8F","#D4795C","#7B8BD4","#B07DB8","#4BADB8"];
 
+    // ── Rotating Quotes ─────────────────────────────────────────────
+    const DAILY_QUOTES = [
+      {text:"A great human revolution in just a single individual will help achieve a change in the destiny of a nation and, further, of all humanity.", attr:"— Daisaku Ikeda"},
+      {text:"Difficulties are not obstacles to our practice — they are the practice itself.", attr:"— Daisaku Ikeda"},
+      {text:"The heart of Buddhism is the conviction that we have within us, at each moment, the ability to transform our situation.", attr:"— Daisaku Ikeda"},
+      {text:"When you chant, you are not calling upon something outside yourself. You are awakening what has always been there.", attr:"— Daisaku Ikeda"},
+      {text:"Gratitude is a source of fundamental human strength. It is the starting point of action, not the conclusion of it.", attr:"— Daisaku Ikeda"},
+      {text:"The practice of chanting Nam-myoho-renge-kyo is itself the act of making one's life shine with the brilliance of the Mystic Law.", attr:"— Daisaku Ikeda"},
+      {text:"Faith means valuing each person's Buddha nature without exception. It means refusing to give up on anyone.", attr:"— Daisaku Ikeda"},
+      {text:"Those who chant Nam-myoho-renge-kyo and feel its rhythm in their hearts will eventually develop the strength to face any storm.", attr:"— Daisaku Ikeda"},
+      {text:"It is not our circumstances that define us — it is the depth of life condition from which we meet them.", attr:"— Daisaku Ikeda"},
+      {text:"Difficulties faced in faith and resolved through faith are not obstacles but opportunities to deepen our lives.", attr:"— Daisaku Ikeda"},
+    ];
+
+    const SUBMIT_MESSAGES = [
+      "✨ Beautifully done. Your daimoku has been recorded.",
+      "🪷 The Gohonzon heard that. Every minute counts.",
+      "🔥 That session just moved something. Keep going.",
+      "✨ Nam-Myoho-Renge-Kyo. Filed. The universe noted it.",
+      "🌟 The district grows stronger with every minute you chant.",
+      "🪷 Well done. One more session in the book. The mountain gets closer.",
+      "✨ Each daimoku is a letter to the Mystic Law. This one was sent.",
+      "🔥 That's the practice. Show up, chant, repeat. You're doing it.",
+      "🌿 Something in the world just shifted because of that session.",
+      "🪷 Received. Your intention carries further than you know.",
+    ];
+
+    // Quote of the day — cycles daily, consistent for all viewers on same day
+    const getDailyQuote = () => {
+      const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(),0,0)) / 86400000);
+      return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+    };
+
     const DEBTS = [
       {num:"I",  en:"All Living Beings",  icon:"🌍", color:"#E8B84B", glow:"rgba(232,184,75,0.18)",
         reflection:"Everything in the universe is interdependent. Our very existence is sustained by countless people and forces we never see — the farmer, the rain, the stranger who held a door. A debt so vast it can never be fully named.",
@@ -110,6 +143,17 @@ repaid in every living face.`;
           { redirect:"follow" }
         );
         return r.json();
+      },
+      async getStudy() {
+        const r = await fetch(`${API_URL}?action=getStudy`, { redirect:"follow" });
+        return r.json();
+      },
+      async saveStudy(data) {
+        const r = await fetch(
+          `${API_URL}?action=saveStudy&data=${encodeURIComponent(JSON.stringify(data))}`,
+          { redirect:"follow" }
+        );
+        return r.json();
       }
     };
 
@@ -143,6 +187,126 @@ repaid in every living face.`;
       if (start > today) return 0;
       return Math.floor((today - start) / 86400000) + 1;
     };
+
+    // ═════════════════════════════════════════════════════════════════
+    //  Collective Mountain Component
+    // ═════════════════════════════════════════════════════════════════
+    function CollectiveMountain({ groupPct, totalMins, groupTarget }) {
+      const pctCapped = Math.min(groupPct, 100);
+
+      // Mountain waypoints: base(100%), camp1(75%), camp2(50%), camp3(25%), summit(0%)
+      // SVG coords: summit at top, base at bottom
+      const WAYPOINTS = [
+        { pct: 0,   y: 98,  label: "Base Camp",  emoji: "⛺" },
+        { pct: 25,  y: 78,  label: "Camp I",      emoji: "🏕️" },
+        { pct: 50,  y: 55,  label: "Halfway",     emoji: "🔥" },
+        { pct: 75,  y: 32,  label: "Camp III",    emoji: "🌟" },
+        { pct: 100, y: 10,  label: "Summit",      emoji: "🪷" },
+      ];
+
+      // Interpolate marker Y position based on group %
+      const getMarkerY = (pct) => {
+        for (let i = 0; i < WAYPOINTS.length - 1; i++) {
+          const lo = WAYPOINTS[i], hi = WAYPOINTS[i+1];
+          if (pct >= lo.pct && pct <= hi.pct) {
+            const t = (pct - lo.pct) / (hi.pct - lo.pct);
+            return lo.y + (hi.y - lo.y) * t;
+          }
+        }
+        return WAYPOINTS[WAYPOINTS.length-1].y;
+      };
+
+      const markerY = getMarkerY(pctCapped);
+      const markerX = 50; // centre of SVG
+
+      // Snow line — appears above 75%
+      const snowOpacity = pctCapped >= 75 ? Math.min((pctCapped - 75) / 25, 1) : 0;
+
+      // Current waypoint label
+      const currentWP = [...WAYPOINTS].reverse().find(w => pctCapped >= w.pct) || WAYPOINTS[0];
+      const nextWP    = WAYPOINTS.find(w => w.pct > pctCapped);
+
+      return (
+        <div className="mountain-wrap">
+          <div className="mountain-label">🏔️ District Mountain — {currentWP.emoji} {currentWP.label}</div>
+          <svg className="mountain-svg" viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
+            {/* Sky gradient */}
+            <defs>
+              <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0a0820" stopOpacity="1"/>
+                <stop offset="100%" stopColor="#1a1440" stopOpacity="1"/>
+              </linearGradient>
+              <linearGradient id="mountainGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#4a3a6a"/>
+                <stop offset="60%" stopColor="#2a2040"/>
+                <stop offset="100%" stopColor="#1a1430"/>
+              </linearGradient>
+              <linearGradient id="snowGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity={0.9 * snowOpacity}/>
+                <stop offset="100%" stopColor="#c8d8f0" stopOpacity={0.4 * snowOpacity}/>
+              </linearGradient>
+              <linearGradient id="pathGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#E8B84B"/>
+                <stop offset="100%" stopColor="#C97D3A"/>
+              </linearGradient>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="1.5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+
+            {/* Background */}
+            <rect width="100" height="110" fill="url(#skyGrad)"/>
+
+            {/* Stars */}
+            {[[15,8],[30,5],[70,12],[85,7],[92,20],[8,25],[55,4],[40,18]].map(([x,y],i)=>(
+              <circle key={i} cx={x} cy={y} r="0.4"
+                fill="white" opacity={0.3+Math.sin(i*1.3)*0.3}/>
+            ))}
+
+            {/* Mountain body */}
+            <polygon points="50,8 12,102 88,102" fill="url(#mountainGrad)"/>
+
+            {/* Snow cap */}
+            <polygon points="50,8 38,32 62,32" fill="url(#snowGrad)"/>
+
+            {/* Waypoint dots */}
+            {WAYPOINTS.map((wp,i) => {
+              const wx = 50 + (i % 2 === 0 ? 0 : (i%4===1?8:-8));
+              const reached = pctCapped >= wp.pct;
+              return (
+                <g key={i}>
+                  <circle cx={wx} cy={wp.y} r="1.8"
+                    fill={reached?"#E8B84B":"rgba(255,255,255,0.15)"}
+                    stroke={reached?"#F5D47A":"rgba(255,255,255,0.2)"}
+                    strokeWidth="0.5"
+                    filter={reached?"url(#glow)":"none"}/>
+                  <text x={wx+(wx>50?3:-3)} y={wp.y+0.6}
+                    fontSize="3.5" fill="rgba(237,232,245,0.5)"
+                    textAnchor={wx>50?"start":"end"}>{wp.emoji}</text>
+                </g>
+              );
+            })}
+
+            {/* Climber marker */}
+            <g className="camp-marker" style={{transform:`translateY(${markerY-50}px)`}}>
+              <circle cx={markerX} cy="50" r="3"
+                fill="#E8B84B" stroke="#F5D47A" strokeWidth="0.8"
+                filter="url(#glow)" opacity="0.95"/>
+              <text x={markerX} y="52" fontSize="4"
+                textAnchor="middle" fill="white">🧗</text>
+            </g>
+          </svg>
+
+          <div className="mountain-pct">{groupPct}%</div>
+          <div className="mountain-sub">
+            {nextWP
+              ? `${groupTarget-totalMins > 0 ? (groupTarget-totalMins).toLocaleString() : 0} mins to ${nextWP.emoji} ${nextWP.label}`
+              : "Summit reached! Nam-Myoho-Renge-Kyo 🪷"}
+          </div>
+        </div>
+      );
+    }
 
     // ═════════════════════════════════════════════════════════════════
     //  Chart.js Components
@@ -515,6 +679,59 @@ repaid in every living face.`;
       ::-webkit-scrollbar{width:4px;}
       ::-webkit-scrollbar-track{background:transparent;}
       ::-webkit-scrollbar-thumb{background:rgba(232,184,75,.28);border-radius:4px;}
+
+      /* ── MOUNTAIN ── */
+      .mountain-wrap{position:relative;width:100%;margin-bottom:18px;
+        padding:22px 20px 16px;border-radius:16px;overflow:hidden;
+        background:linear-gradient(180deg,rgba(8,6,20,0) 0%,rgba(8,6,20,.4) 100%);
+        border:1px solid rgba(255,255,255,.07);}
+      .mountain-svg{width:100%;height:auto;display:block;}
+      .mountain-label{position:absolute;top:14px;left:50%;transform:translateX(-50%);
+        font-family:'Cinzel',serif;font-size:10px;letter-spacing:.22em;color:rgba(232,184,75,.6);
+        text-transform:uppercase;white-space:nowrap;}
+      .mountain-pct{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+        font-family:'Cinzel',serif;font-size:28px;font-weight:700;
+        background:linear-gradient(135deg,#F5D47A,#E8B84B);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+      .mountain-sub{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+        font-size:9px;color:rgba(237,232,245,.35);letter-spacing:.15em;text-transform:uppercase;
+        white-space:nowrap;}
+      .camp-marker{transition:all .8s cubic-bezier(.4,0,.2,1);}
+
+      /* ── STUDY TAB ── */
+      .study-card{border-radius:18px;padding:28px;margin-bottom:16px;}
+      .study-month-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;
+        letter-spacing:.2em;text-transform:uppercase;padding:4px 12px;
+        border-radius:20px;margin-bottom:16px;font-family:'Raleway',sans-serif;}
+      .study-title{font-family:'Cinzel',serif;font-size:clamp(18px,3.5vw,26px);
+        font-weight:700;letter-spacing:.06em;margin-bottom:14px;line-height:1.3;}
+      .study-intro{font-size:13.5px;line-height:1.9;color:rgba(237,232,245,.75);
+        font-weight:300;margin-bottom:20px;}
+      .study-bullets{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:22px;}
+      .study-bullet{display:flex;align-items:flex-start;gap:10px;font-size:13px;
+        line-height:1.75;color:rgba(237,232,245,.7);}
+      .study-bullet-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:7px;}
+      .study-quote{padding:18px 22px;border-radius:12px;margin-bottom:20px;border-left:3px solid;position:relative;}
+      .study-quote-text{font-size:15px;font-style:italic;line-height:1.85;font-weight:600;margin-bottom:8px;}
+      .study-quote-attr{font-size:10px;letter-spacing:.18em;text-transform:uppercase;opacity:.7;}
+      .study-reflection{padding:14px 18px;border-radius:10px;background:rgba(255,255,255,.03);
+        border:1px solid rgba(255,255,255,.08);font-size:13px;color:rgba(237,232,245,.55);
+        font-style:italic;line-height:1.7;}
+      .study-reflection::before{content:'🪞 ';font-style:normal;}
+      .archive-item{padding:12px 16px;border-radius:10px;cursor:pointer;border:1px solid rgba(255,255,255,.07);
+        background:rgba(255,255,255,.02);margin-bottom:8px;transition:all .18s;
+        display:flex;align-items:center;justify-content:space-between;}
+      .archive-item:hover{background:rgba(255,255,255,.05);border-color:rgba(232,184,75,.25);}
+      .study-textarea{width:100%;padding:12px 15px;background:rgba(255,255,255,.05);
+        border:1px solid rgba(232,184,75,.18);border-radius:10px;color:#EDE8F5;
+        font-family:'Raleway',sans-serif;font-size:13px;outline:none;resize:vertical;
+        transition:border-color .2s;min-height:90px;line-height:1.65;}
+      .study-textarea:focus{border-color:rgba(232,184,75,.55);box-shadow:0 0 0 3px rgba(232,184,75,.1);}
+      .accent-picker{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+      .accent-opt{width:28px;height:28px;border-radius:50%;cursor:pointer;
+        border:2px solid transparent;transition:all .18s;flex-shrink:0;}
+      .accent-opt.selected{border-color:#EDE8F5;transform:scale(1.15);}
+
       .theme-morning .app{background:radial-gradient(ellipse at 20% 0%,rgba(255,180,50,.18) 0%,transparent 55%),radial-gradient(ellipse at 80% 90%,rgba(232,184,75,.14) 0%,transparent 50%),#0d0a14;}
       .theme-morning h1{background:linear-gradient(135deg,#FFD77A,#F0A030,#E87020);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
       .theme-evening .app{background:radial-gradient(ellipse at 30% 10%,rgba(180,60,120,.22) 0%,transparent 52%),radial-gradient(ellipse at 70% 80%,rgba(100,60,200,.18) 0%,transparent 52%),#0a0618;}
@@ -648,6 +865,16 @@ repaid in every living face.`;
       const [campMsg,        setCampMsg]        = useState(null);
       const [challenges,     setChallenges]     = useState({}); // {name: 30|45|60}
       const [grExpanded,    setGrExpanded]    = useState(null);
+      const [studyData,      setStudyData]      = useState([]);   // array of monthly study entries
+      const [studyLoading,   setStudyLoading]   = useState(false);
+      const [studyArchive,   setStudyArchive]   = useState(false); // show archive toggle
+      // Admin study form
+      const [studyForm,      setStudyForm]      = useState({
+        month:"", accent:"gold", title:"", intro:"",
+        bullets:"", quote:"", quoteAuthor:"— Daisaku Ikeda", reflection:""
+      });
+      const [studySaving,    setStudySaving]    = useState(false);
+      const [studyMsg,       setStudyMsg]       = useState(null);
       const [timeTheme,      setTimeTheme]      = useState(getTimeTheme());
       const [confetti,       setConfetti]       = useState([]);
       const [dashKey,        setDashKey]        = useState(0); // remount animations on tab switch
@@ -717,6 +944,11 @@ repaid in every living face.`;
           try {
             const ch = await api.getChallenges();
             if (ch.ok) setChallenges(ch.challenges||{});
+          } catch(e) {}
+          // Load study material
+          try {
+            const sd = await api.getStudy();
+            if (sd.ok) setStudyData(sd.entries||[]);
           } catch(e) {}
           // Load campaign dates for dashboard
           try {
@@ -790,7 +1022,7 @@ repaid in every living face.`;
           setEntries(prev=>[...prev,{id:r.id||Date.now(),name:form.name,date:form.date,count:parseInt(form.count),challenge:personChallenge}]);
           setForm({name:"",date:todayStr(),count:""});
           setErrors({});
-          showToast("✨ Beautifully done. Your daimoku has been recorded.");
+          showToast(SUBMIT_MESSAGES[Math.floor(Math.random()*SUBMIT_MESSAGES.length)]);
           // Burst confetti if person just hit 100%
           setTimeout(()=>{
             const p = getPersonStats(form.name, names.indexOf(form.name));
@@ -927,10 +1159,12 @@ repaid in every living face.`;
               <div className="time-label" style={{color:TIME_THEMES[timeTheme].accent}}>
                 {TIME_THEMES[timeTheme].label}
               </div>
-              <div className="quote-box">
-                <p className="qt">{IKEDA_QUOTE}</p>
-                <p className="qa">— Daisaku Ikeda</p>
-              </div>
+              {(()=>{const dq=getDailyQuote();return(
+                <div className="quote-box">
+                  <p className="qt">{dq.text}</p>
+                  <p className="qa">{dq.attr}</p>
+                </div>
+              );})()}
 
               {/* ── Intentions Banner — compact ── */}
               <div style={{maxWidth:660,margin:"0 auto 22px",padding:"11px 18px",
@@ -965,7 +1199,7 @@ repaid in every living face.`;
             </div>
 
             <div className="tabs">
-              {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["gratitude","🙏 Gratitude"],["admin","🔐 Admin"]].map(([k,l])=>(
+              {[["track","🔔 Track"],["dashboard","📊 Dashboard"],["gratitude","🙏 Gratitude"],["study","📚 Study"],["admin","🔐 Admin"]].map(([k,l])=>(
                 <button key={k} className={`tab${tab===k?" on":""}`} onClick={()=>{setTab(k);if(k==="dashboard")setDashKey(d=>d+1);}}>{l}</button>
               ))}
             </div>
@@ -1379,6 +1613,78 @@ repaid in every living face.`;
                             <button onClick={()=>{setAdminUnlocked(false);setAdminPin("");}} style={{background:"none",border:"1px solid rgba(224,107,117,.3)",borderRadius:8,color:"rgba(224,107,117,.6)",padding:"6px 14px",fontSize:11,cursor:"pointer",fontFamily:"Raleway,sans-serif"}}>
                               🔒 Lock Admin
                             </button>
+                          </div>
+                          <div style={{height:1,background:"rgba(232,184,75,.12)",margin:"24px 0"}}/>
+                          {/* ── Study Material Editor ── */}
+                          <div className="sec">📚 Monthly Study Material</div>
+                          <div style={{fontSize:12,color:"rgba(237,232,245,.4)",marginBottom:16,lineHeight:1.7}}>
+                            Add this month's study content. Appears in the 📚 Study tab for all members.
+                          </div>
+                          <div className="fg" style={{maxWidth:520}}>
+                            <div className="fl">
+                              <label>Month</label>
+                              <select className="fi" value={studyForm.month} onChange={e=>setStudyForm(f=>({...f,month:e.target.value}))}>
+                                <option value="">— Select month —</option>
+                                {monthOptions.map(m=><option key={m} value={m}>{m}</option>)}
+                              </select>
+                            </div>
+                            <div className="fl">
+                              <label>Accent Colour</label>
+                              <div className="accent-picker">
+                                {[["gold","#E8B84B"],["purple","#9B6CC4"],["green","#5BAD8F"],["blue","#5E9BBF"],["rose","#E06B75"]].map(([k,col])=>(
+                                  <div key={k} className={"accent-opt"+(studyForm.accent===k?" selected":"")}
+                                    style={{background:col}} onClick={()=>setStudyForm(f=>({...f,accent:k}))}/>
+                                ))}
+                                <span style={{fontSize:11,color:"rgba(237,232,245,.35)",marginLeft:4}}>Sets card colour</span>
+                              </div>
+                            </div>
+                            <div className="fl">
+                              <label>Study Title</label>
+                              <input className="fi" type="text" placeholder="e.g. The Four Debts of Gratitude"
+                                value={studyForm.title} onChange={e=>setStudyForm(f=>({...f,title:e.target.value}))}/>
+                            </div>
+                            <div className="fl">
+                              <label>Introduction</label>
+                              <textarea className="study-textarea" placeholder="A brief intro to the study topic..."
+                                value={studyForm.intro} onChange={e=>setStudyForm(f=>({...f,intro:e.target.value}))}/>
+                            </div>
+                            <div className="fl">
+                              <label>Key Points (one per line, start each with -)</label>
+                              <textarea className="study-textarea" style={{minHeight:120}}
+                                placeholder="- First key point"
+                                value={studyForm.bullets} onChange={e=>setStudyForm(f=>({...f,bullets:e.target.value}))}/>
+                            </div>
+                            <div className="fl">
+                              <label>Key Quote</label>
+                              <textarea className="study-textarea" style={{minHeight:70}}
+                                placeholder="The quote to highlight..."
+                                value={studyForm.quote} onChange={e=>setStudyForm(f=>({...f,quote:e.target.value}))}/>
+                            </div>
+                            <div className="fl">
+                              <label>Quote Attribution</label>
+                              <input className="fi" type="text" placeholder="— Daisaku Ikeda"
+                                value={studyForm.quoteAuthor} onChange={e=>setStudyForm(f=>({...f,quoteAuthor:e.target.value}))}/>
+                            </div>
+                            <div className="fl">
+                              <label>Reflection Question</label>
+                              <textarea className="study-textarea" style={{minHeight:70}}
+                                placeholder="A question for members to sit with..."
+                                value={studyForm.reflection} onChange={e=>setStudyForm(f=>({...f,reflection:e.target.value}))}/>
+                            </div>
+                            <button className="sbtn" disabled={studySaving} onClick={async()=>{
+                              if (!studyForm.month||!studyForm.title){setStudyMsg({msg:"Month and title required",type:"error"});return;}
+                              setStudySaving(true);setStudyMsg(null);
+                              try {
+                                const r=await api.saveStudy(studyForm);
+                                if (!r.ok) throw new Error(r.error||"Save failed");
+                                setStudyData(prev=>[...prev.filter(s=>s.month!==studyForm.month),{...studyForm}]
+                                  .sort((a,b)=>new Date("1 "+a.month)-new Date("1 "+b.month)));
+                                setStudyMsg({msg:"✅ Study material saved for "+studyForm.month,type:"success"});
+                                setStudyForm(f=>({...f,title:"",intro:"",bullets:"",quote:"",quoteAuthor:"— Daisaku Ikeda",reflection:""}));
+                              } catch(err){setStudyMsg({msg:"Error: "+err.message,type:"error"});}
+                              finally{setStudySaving(false);}
+                            }}>{studySaving?"Saving…":"Save Study Material"}</button>
+                            {studyMsg&&<div className={"toast "+studyMsg.type}>{studyMsg.msg}</div>}
                           </div>
                         </>
                       )}
