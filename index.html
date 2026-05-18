@@ -157,6 +157,27 @@ repaid in every living face.`;
       }
     };
 
+    // ── Active campaign detector ─────────────────────────────────────
+    // Returns {year, month} of the campaign whose startDate is most recent
+    // but still <= today. Falls back to current calendar month.
+    const getActiveCampaign = (campaigns) => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      let best = null, bestDate = null;
+      campaigns.forEach(c => {
+        if (!c.startDate) return;
+        const d = new Date(c.startDate + "T00:00:00");
+        if (d <= today) {
+          if (!bestDate || d > bestDate) { bestDate = d; best = c; }
+        }
+      });
+      if (best && best.startDate) {
+        const d = new Date(best.startDate + "T00:00:00");
+        return { year: d.getFullYear(), month: d.getMonth() };
+      }
+      const n = new Date();
+      return { year: n.getFullYear(), month: n.getMonth() };
+    };
+
     // ── Campaign start date helper ───────────────────────────────────
     const getCampaignStart = (campaigns, y, m) => {
       // Get ALL entries for this month
@@ -895,11 +916,19 @@ repaid in every living face.`;
             const sd = await api.getStudy();
             if (sd.ok) setStudyData(sd.entries||[]);
           } catch(e) {}
-          // Load campaign dates for dashboard
+          // Load campaign dates — auto-navigate to active campaign
           try {
             const cd = await api.getCampaignDates();
-            if (cd.ok) setCampaigns(cd.campaigns||[]);
-          } catch(e) { console.log('Campaign load error:', e); }
+            if (cd.ok) {
+              const camps = cd.campaigns||[];
+              setCampaigns(camps);
+              if (camps.length > 0) {
+                const active = getActiveCampaign(camps);
+                setViewYear(active.year);
+                setViewMonth(active.month);
+              }
+            }
+          } catch(e) {}
         } catch(e) {
           if (!isRefresh) setAppState("error");
           else showToast("Refresh failed — "+e.message, "error");
@@ -938,7 +967,15 @@ repaid in every living face.`;
           const r = await api.setCampaignDate(campLabel, campDate, adminPin);
           if (!r.ok) throw new Error(r.error||"Failed");
           setCampMsg({msg:"✅ Campaign start date updated: "+campLabel+" → "+campDate, type:"success"});
-          loadCampaigns();
+          // Refresh campaigns and re-detect active campaign
+          const cd = await api.getCampaignDates();
+          if (cd.ok) {
+            const camps = cd.campaigns||[];
+            setCampaigns(camps);
+            const active = getActiveCampaign(camps);
+            setViewYear(active.year);
+            setViewMonth(active.month);
+          }
           setCampDate("");
         } catch(err) {
           if (err.message.includes("PIN")) { setAdminUnlocked(false); setPinError(true); }
@@ -1001,7 +1038,9 @@ repaid in every living face.`;
           elapsed=daysElapsedFromStart(campaignStart);
           mine=allMine.filter(e=>{
             const d=new Date(e.date+"T00:00:00");
-            return d>=campaignStart && d.getFullYear()===viewYear && d.getMonth()===viewMonth;
+            const today=new Date(); today.setHours(0,0,0,0);
+            return d>=campaignStart && d<=today &&
+              (d.getFullYear()===viewYear && d.getMonth()===viewMonth);
           });
           target=elapsed*personalTarget;
         } else {
@@ -1034,9 +1073,11 @@ repaid in every living face.`;
       const campStart=getCampaignStart(campaigns,viewYear,viewMonth);
       const elapsed=viewMode==="mtd"?daysElapsedFromStart(campStart):0; // all-time elapsed is per-person
       const isCurrent=viewYear===now.getFullYear()&&viewMonth===now.getMonth();
+      // Allow navigation one month ahead so admins can preview upcoming campaigns
+      const nextAllowed = new Date(viewYear, viewMonth+1) <= new Date(now.getFullYear(), now.getMonth()+1);
 
       const prevMonth=()=>{if(viewMonth===0){setViewYear(y=>y-1);setViewMonth(11);}else setViewMonth(m=>m-1);setExpandedPerson(null);};
-      const nextMonth=()=>{if(isCurrent)return;if(viewMonth===11){setViewYear(y=>y+1);setViewMonth(0);}else setViewMonth(m=>m+1);setExpandedPerson(null);};
+      const nextMonth=()=>{if(!nextAllowed)return;if(viewMonth===11){setViewYear(y=>y+1);setViewMonth(0);}else setViewMonth(m=>m+1);setExpandedPerson(null);};
 
       const getDailyData=useCallback(pEntries=>{
         if (viewMode==="alltime"){
@@ -1189,7 +1230,7 @@ repaid in every living face.`;
                     <div className="mnav">
                       <button className="navbtn" onClick={prevMonth}>‹</button>
                       <span className="mlbl">{viewMode==="alltime"?"All Time":monthLabel(viewYear,viewMonth)}</span>
-                      <button className="navbtn" onClick={nextMonth} disabled={isCurrent||viewMode==="alltime"}>›</button>
+                      <button className="navbtn" onClick={nextMonth} disabled={!nextAllowed||viewMode==="alltime"}>›</button>
                     </div>
                     <div className="vtog">
                       {[["mtd","MTD"],["alltime","All Time"]].map(([k,l])=>(
