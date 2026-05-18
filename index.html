@@ -1115,7 +1115,7 @@ repaid in every living face.`;
                 borderRadius:10,textAlign:"center"}}>
                 <div style={{fontSize:10,letterSpacing:".2em",color:"#5BAD8F",
                   textTransform:"uppercase",marginBottom:7,fontFamily:"'Cinzel',serif"}}>
-                  🙏 Chanting For — May Zadankai
+                  {"🙏 Chanting For — "+new Date().toLocaleString("en-US",{month:"long"})+" Zadankai"}
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:"6px 12px"}}>
                   {["🌟 25 members","💬 5 experiences","🤝 5 new members","🛡️ Safe gathering",
@@ -1439,83 +1439,94 @@ repaid in every living face.`;
               )}
 
               {/* ══ STUDY ══ */}
-              {tab==="study" && (
-                <div>
-                  {studyData.length === 0 || !studyData.find(s => s.month === new Date().toLocaleString("en-US",{month:"long",year:"numeric"})) ? (
-                    <div className="card" style={{textAlign:"center",padding:"48px 24px"}}>
-                      <div style={{fontSize:36,marginBottom:14}}>🪷</div>
-                      <div style={{fontFamily:"'Cinzel',serif",color:"#E8B84B",fontSize:16,marginBottom:10,letterSpacing:".08em"}}>
-                        Stay Tuned
+              {tab==="study" && (()=>{
+                const STUDY_ACCENTS = {
+                  gold:  {bg:"rgba(232,184,75,.08)", border:"rgba(232,184,75,.3)", text:"#E8B84B", dot:"#E8B84B"},
+                  purple:{bg:"rgba(155,108,196,.08)",border:"rgba(155,108,196,.3)",text:"#9B6CC4", dot:"#9B6CC4"},
+                  green: {bg:"rgba(91,173,143,.08)", border:"rgba(91,173,143,.3)", text:"#5BAD8F", dot:"#5BAD8F"},
+                  blue:  {bg:"rgba(94,155,191,.08)", border:"rgba(94,155,191,.3)", text:"#5E9BBF", dot:"#5E9BBF"},
+                  rose:  {bg:"rgba(232,107,117,.08)",border:"rgba(232,107,117,.3)",text:"#E06B75", dot:"#E06B75"},
+                };
+                // Current month label — same format as api.gs
+                const curMonth = new Date().toLocaleString("en-US",{month:"long",year:"numeric"});
+                // Match by month label, fallback: use most recent entry
+                const curStudy = studyData.find(s => s.month === curMonth)
+                  || (studyData.length > 0 ? studyData[studyData.length-1] : null);
+                const pastStudy = studyData.filter(s => s !== curStudy);
+
+                const StudyCard = ({s}) => {
+                  const ac = STUDY_ACCENTS[s.accent] || STUDY_ACCENTS.gold;
+                  const bullets = (s.bullets||"").split(/\r?\n/).filter(b=>b.trim());
+                  return (
+                    <div className="study-card"
+                      style={{border:`1px solid ${ac.border}`,
+                        background:`linear-gradient(135deg,${ac.bg},rgba(255,255,255,.02))`}}>
+                      <div className="study-month-badge"
+                        style={{background:ac.bg,border:`1px solid ${ac.border}`,color:ac.text}}>
+                        📚 {s.month}
                       </div>
-                      <div style={{fontSize:13,color:"rgba(237,232,245,.4)",lineHeight:1.75,maxWidth:320,margin:"0 auto"}}>
-                        This month's study material will be shared here soon.<br/>
-                        In the meantime — keep chanting. 🔥
-                      </div>
-                    </div>
-                  ) : (
-                    studyData.filter(s => s.month === new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).map(s => {
-                      const ACCENTS = {
-                        gold:  {bg:"rgba(232,184,75,.08)", border:"rgba(232,184,75,.3)", text:"#E8B84B", dot:"#E8B84B"},
-                        purple:{bg:"rgba(155,108,196,.08)",border:"rgba(155,108,196,.3)",text:"#9B6CC4",dot:"#9B6CC4"},
-                        green: {bg:"rgba(91,173,143,.08)", border:"rgba(91,173,143,.3)", text:"#5BAD8F", dot:"#5BAD8F"},
-                        blue:  {bg:"rgba(94,155,191,.08)", border:"rgba(94,155,191,.3)", text:"#5E9BBF", dot:"#5E9BBF"},
-                        rose:  {bg:"rgba(232,107,117,.08)",border:"rgba(232,107,117,.3)",text:"#E06B75", dot:"#E06B75"},
-                      };
-                      const ac = ACCENTS[s.accent] || ACCENTS.gold;
-                      const bullets = (s.bullets||"").split("\n").filter(b=>b.trim());
-                      return (
-                        <div className="study-card" key={s.month}
-                          style={{border:`1px solid ${ac.border}`,
-                            background:`linear-gradient(135deg,${ac.bg},rgba(255,255,255,.02))`}}>
-                          <div className="study-month-badge"
-                            style={{background:ac.bg,border:`1px solid ${ac.border}`,color:ac.text}}>
-                            📚 {s.month}
-                          </div>
-                          <div className="study-title" style={{color:ac.text}}>{s.title}</div>
-                          {s.intro && <p className="study-intro">{s.intro}</p>}
-                          {bullets.length > 0 && (
-                            <ul className="study-bullets">
-                              {bullets.map((b,bi) => (
-                                <li key={bi} className="study-bullet">
-                                  <span className="study-bullet-dot" style={{background:ac.dot}}/>
-                                  <span>{b.replace(/^[-•]\s*/,"")}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          {s.quote && (
-                            <div className="study-quote" style={{background:ac.bg,borderColor:ac.border}}>
-                              <div className="study-quote-text" style={{color:ac.text}}>"{s.quote}"</div>
-                              <div className="study-quote-attr" style={{color:ac.text}}>
-                                {s.quoteAuthor||"— Daisaku Ikeda"}
-                              </div>
-                            </div>
-                          )}
-                          {s.reflection && <div className="study-reflection">{s.reflection}</div>}
-                        </div>
-                      );
-                    })
-                  )}
-                  {studyData.filter(s => s.month !== new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).length > 0 && (
-                    <div className="card" style={{marginTop:8}}>
-                      <button className="gr-parable-btn" onClick={()=>setStudyArchive(a=>!a)}>
-                        <span>🗂️ Past Study Material ({studyData.filter(s=>s.month!==new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).length})</span>
-                        <span style={{marginLeft:"auto"}}>{studyArchive?"▴":"▾"}</span>
-                      </button>
-                      {studyArchive && (
-                        <div style={{marginTop:12}}>
-                          {studyData.filter(s=>s.month!==new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).map(s=>(
-                            <div key={s.month} className="archive-item">
-                              <span style={{fontSize:13,color:"rgba(237,232,245,.65)"}}>{s.month}</span>
-                              <span style={{fontSize:12,color:"#E8B84B"}}>{s.title}</span>
-                            </div>
+                      <div className="study-title" style={{color:ac.text}}>{s.title}</div>
+                      {s.intro && <p className="study-intro">{s.intro}</p>}
+                      {bullets.length > 0 && (
+                        <ul className="study-bullets">
+                          {bullets.map((b,bi) => (
+                            <li key={bi} className="study-bullet">
+                              <span className="study-bullet-dot" style={{background:ac.dot}}/>
+                              <span>{b.replace(/^[-•]\s*/,"")}</span>
+                            </li>
                           ))}
+                        </ul>
+                      )}
+                      {s.quote && (
+                        <div className="study-quote" style={{background:ac.bg,borderColor:ac.border}}>
+                          <div className="study-quote-text" style={{color:ac.text}}>"{s.quote}"</div>
+                          <div className="study-quote-attr" style={{color:ac.text}}>
+                            {s.quoteAuthor||"— Daisaku Ikeda"}
+                          </div>
                         </div>
                       )}
+                      {s.reflection && <div className="study-reflection">{s.reflection}</div>}
                     </div>
-                  )}
-                </div>
-              )}
+                  );
+                };
+
+                return (
+                  <div>
+                    {!curStudy ? (
+                      <div className="card" style={{textAlign:"center",padding:"48px 24px"}}>
+                        <div style={{fontSize:36,marginBottom:14}}>🪷</div>
+                        <div style={{fontFamily:"'Cinzel',serif",color:"#E8B84B",fontSize:16,
+                          marginBottom:10,letterSpacing:".08em"}}>Stay Tuned</div>
+                        <div style={{fontSize:13,color:"rgba(237,232,245,.4)",lineHeight:1.75,
+                          maxWidth:320,margin:"0 auto"}}>
+                          This month's study material will be shared here soon.<br/>
+                          In the meantime — keep chanting. 🔥
+                        </div>
+                      </div>
+                    ) : (
+                      <StudyCard s={curStudy} />
+                    )}
+                    {pastStudy.length > 0 && (
+                      <div className="card" style={{marginTop:8}}>
+                        <button className="gr-parable-btn" onClick={()=>setStudyArchive(a=>!a)}>
+                          <span>🗂️ Past Study Material ({pastStudy.length})</span>
+                          <span style={{marginLeft:"auto"}}>{studyArchive?"▴":"▾"}</span>
+                        </button>
+                        {studyArchive && (
+                          <div style={{marginTop:12}}>
+                            {pastStudy.map(s=>(
+                              <div key={s.month} className="archive-item">
+                                <span style={{fontSize:13,color:"rgba(237,232,245,.65)"}}>{s.month}</span>
+                                <span style={{fontSize:12,color:"#E8B84B"}}>{s.title}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* ══ ADMIN ══ */}
               {tab==="admin" && (
