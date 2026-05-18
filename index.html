@@ -837,6 +837,7 @@ repaid in every living face.`;
     // ═════════════════════════════════════════════════════════════════
     function DaimokuTracker() {
       const now = new Date();
+      const dailyQuote = getDailyQuote();
       const [appState,       setAppState]       = useState("loading");
       const [names,          setNames]          = useState([]);
       const [entries,        setEntries]        = useState([]);
@@ -1159,12 +1160,10 @@ repaid in every living face.`;
               <div className="time-label" style={{color:TIME_THEMES[timeTheme].accent}}>
                 {TIME_THEMES[timeTheme].label}
               </div>
-              {(()=>{const dq=getDailyQuote();return(
-                <div className="quote-box">
-                  <p className="qt">{dq.text}</p>
-                  <p className="qa">{dq.attr}</p>
-                </div>
-              );})()}
+              <div className="quote-box">
+                <p className="qt">{dailyQuote.text}</p>
+                <p className="qa">{dailyQuote.attr}</p>
+              </div>
 
               {/* ── Intentions Banner — compact ── */}
               <div style={{maxWidth:660,margin:"0 auto 22px",padding:"11px 18px",
@@ -1343,13 +1342,10 @@ repaid in every living face.`;
                             // All time — consistency bar: days logged / days elapsed
                             <div style={{marginTop:10,display:"flex",alignItems:"center",gap:8}}>
                               <div style={{flex:1,height:4,background:"rgba(255,255,255,.07)",borderRadius:4,overflow:"hidden"}}>
-                                {(() => {
-                                  const daysLogged=[...new Set(p.entries.map(e=>e.date))].length;
-                                  const consistency=p.elapsed>0?Math.min(Math.round((daysLogged/p.elapsed)*100),100):0;
-                                  return <div style={{height:"100%",borderRadius:4,width:`${consistency}%`,
-                                    background:"linear-gradient(90deg,rgba(155,108,196,.6),#9B6CC4)",
-                                    transition:"width .9s cubic-bezier(.4,0,.2,1)"}}/>;
-                                })()}
+                                <div style={{height:"100%",borderRadius:4,
+                                  width:`${p.elapsed>0?Math.min(Math.round(([...new Set(p.entries.map(e=>e.date))].length/p.elapsed)*100),100):0}%`,
+                                  background:"linear-gradient(90deg,rgba(155,108,196,.6),#9B6CC4)",
+                                  transition:"width .9s cubic-bezier(.4,0,.2,1)"}}/>
                               </div>
                               <span style={{fontSize:10,color:"rgba(237,232,245,.35)",whiteSpace:"nowrap"}}>
                                 {[...new Set(p.entries.map(e=>e.date))].length} days logged
@@ -1403,6 +1399,17 @@ repaid in every living face.`;
                       );
                     })}
                   </div>
+
+                  {viewMode==="mtd" && (
+                    <div className="card" style={{marginTop:18}}>
+                      <div className="sec">🏔️ Collective Mountain</div>
+                      <CollectiveMountain
+                        groupPct={pct(totalMins,groupMtdTarget||1)}
+                        totalMins={totalMins}
+                        groupTarget={groupMtdTarget}
+                      />
+                    </div>
+                  )}
 
                   {totalMins>0 && (
                     <div className="card anim-slide-up anim-delay-6" style={{marginTop:18}}>
@@ -1487,7 +1494,86 @@ repaid in every living face.`;
                 </div>
               )}
 
-              {/* ══ ADMIN ══ */}}
+              {/* ══ STUDY ══ */}
+              {tab==="study" && (
+                <div>
+                  {studyData.length === 0 || !studyData.find(s => s.month === new Date().toLocaleString("en-US",{month:"long",year:"numeric"})) ? (
+                    <div className="card" style={{textAlign:"center",padding:"48px 24px"}}>
+                      <div style={{fontSize:36,marginBottom:14}}>🪷</div>
+                      <div style={{fontFamily:"'Cinzel',serif",color:"#E8B84B",fontSize:16,marginBottom:10,letterSpacing:".08em"}}>
+                        Stay Tuned
+                      </div>
+                      <div style={{fontSize:13,color:"rgba(237,232,245,.4)",lineHeight:1.75,maxWidth:320,margin:"0 auto"}}>
+                        This month's study material will be shared here soon.<br/>
+                        In the meantime — keep chanting. 🔥
+                      </div>
+                    </div>
+                  ) : (
+                    studyData.filter(s => s.month === new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).map(s => {
+                      const ACCENTS = {
+                        gold:  {bg:"rgba(232,184,75,.08)", border:"rgba(232,184,75,.3)", text:"#E8B84B", dot:"#E8B84B"},
+                        purple:{bg:"rgba(155,108,196,.08)",border:"rgba(155,108,196,.3)",text:"#9B6CC4",dot:"#9B6CC4"},
+                        green: {bg:"rgba(91,173,143,.08)", border:"rgba(91,173,143,.3)", text:"#5BAD8F", dot:"#5BAD8F"},
+                        blue:  {bg:"rgba(94,155,191,.08)", border:"rgba(94,155,191,.3)", text:"#5E9BBF", dot:"#5E9BBF"},
+                        rose:  {bg:"rgba(232,107,117,.08)",border:"rgba(232,107,117,.3)",text:"#E06B75", dot:"#E06B75"},
+                      };
+                      const ac = ACCENTS[s.accent] || ACCENTS.gold;
+                      const bullets = (s.bullets||"").split("\n").filter(b=>b.trim());
+                      return (
+                        <div className="study-card" key={s.month}
+                          style={{border:`1px solid ${ac.border}`,
+                            background:`linear-gradient(135deg,${ac.bg},rgba(255,255,255,.02))`}}>
+                          <div className="study-month-badge"
+                            style={{background:ac.bg,border:`1px solid ${ac.border}`,color:ac.text}}>
+                            📚 {s.month}
+                          </div>
+                          <div className="study-title" style={{color:ac.text}}>{s.title}</div>
+                          {s.intro && <p className="study-intro">{s.intro}</p>}
+                          {bullets.length > 0 && (
+                            <ul className="study-bullets">
+                              {bullets.map((b,bi) => (
+                                <li key={bi} className="study-bullet">
+                                  <span className="study-bullet-dot" style={{background:ac.dot}}/>
+                                  <span>{b.replace(/^[-•]\s*/,"")}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {s.quote && (
+                            <div className="study-quote" style={{background:ac.bg,borderColor:ac.border}}>
+                              <div className="study-quote-text" style={{color:ac.text}}>"{s.quote}"</div>
+                              <div className="study-quote-attr" style={{color:ac.text}}>
+                                {s.quoteAuthor||"— Daisaku Ikeda"}
+                              </div>
+                            </div>
+                          )}
+                          {s.reflection && <div className="study-reflection">{s.reflection}</div>}
+                        </div>
+                      );
+                    })
+                  )}
+                  {studyData.filter(s => s.month !== new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).length > 0 && (
+                    <div className="card" style={{marginTop:8}}>
+                      <button className="gr-parable-btn" onClick={()=>setStudyArchive(a=>!a)}>
+                        <span>🗂️ Past Study Material ({studyData.filter(s=>s.month!==new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).length})</span>
+                        <span style={{marginLeft:"auto"}}>{studyArchive?"▴":"▾"}</span>
+                      </button>
+                      {studyArchive && (
+                        <div style={{marginTop:12}}>
+                          {studyData.filter(s=>s.month!==new Date().toLocaleString("en-US",{month:"long",year:"numeric"})).map(s=>(
+                            <div key={s.month} className="archive-item">
+                              <span style={{fontSize:13,color:"rgba(237,232,245,.65)"}}>{s.month}</span>
+                              <span style={{fontSize:12,color:"#E8B84B"}}>{s.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+                            {/* ══ ADMIN ══ */}}
               {tab==="admin" && (
                 <div className="card">
                   <div className="sec">Monthly Pledge</div>
