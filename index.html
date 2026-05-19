@@ -39,21 +39,31 @@
 
     // ── Rotating Quotes ─────────────────────────────────────────────
     const DAILY_QUOTES = [
-      {text:"A great human revolution in just a single individual will help achieve a change in the destiny of a nation and, further, of all humanity.", attr:"— Daisaku Ikeda"},
-      {text:"Difficulties are not obstacles to our practice — they are the practice itself.", attr:"— Daisaku Ikeda"},
-      {text:"The heart of Buddhism is the conviction that we have within us, at each moment, the ability to transform our situation.", attr:"— Daisaku Ikeda"},
-      {text:"When you chant, you are not calling upon something outside yourself. You are awakening what has always been there.", attr:"— Daisaku Ikeda"},
-      {text:"Gratitude is a source of fundamental human strength. It is the starting point of action, not the conclusion of it.", attr:"— Daisaku Ikeda"},
-      {text:"The practice of chanting Nam-myoho-renge-kyo is itself the act of making one's life shine with the brilliance of the Mystic Law.", attr:"— Daisaku Ikeda"},
-      {text:"Faith means valuing each person's Buddha nature without exception. It means refusing to give up on anyone.", attr:"— Daisaku Ikeda"},
-      {text:"Those who chant Nam-myoho-renge-kyo and feel its rhythm in their hearts will eventually develop the strength to face any storm.", attr:"— Daisaku Ikeda"},
-      {text:"It is not our circumstances that define us — it is the depth of life condition from which we meet them.", attr:"— Daisaku Ikeda"},
-      {text:"Difficulties faced in faith and resolved through faith are not obstacles but opportunities to deepen our lives.", attr:"— Daisaku Ikeda"},
+      // Prayer
+      {text:"Prayer is the courage to persevere. It is the struggle to overcome our own weakness and lack of confidence in ourselves. It is the act of impressing in the very depths of our being the conviction that we can change the situation without fail.", attr:"— Daisaku Ikeda, Seikyo Shimbun"},
+      // Prayer
+      {text:"Prayer is the way to destroy all fear. It is the way to banish sorrow, the way to light a torch of hope. It is the revolution that rewrites the scenario of our destiny.", attr:"— Daisaku Ikeda, Seikyo Shimbun"},
+      // Faith
+      {text:"By nature, people are strong, wise, cheerful and warm. Religious faith is the power that develops these qualities. The purpose of faith is to make people wise.", attr:"— Daisaku Ikeda, The Wisdom of the Lotus Sutra"},
+      // Faith
+      {text:"The struggle to surmount such inner deadlock is what faith is all about. Only through arousing a strong and powerful spirit and resolutely waging a battle against laziness and all forms of weak-spiritedness can we achieve a life of victory.", attr:"— Daisaku Ikeda, SGI Executive Conference, 2002"},
+      // Life Potential
+      {text:"In most cases, our so-called limitations are nothing more than our own decision to limit ourselves. Life's natural tendency is toward the flowering of potential, toward limitless advance — and the key lies in a single word: faith.", attr:"— Daisaku Ikeda, The Wisdom of the Lotus Sutra"},
+      // Hope
+      {text:"Hope is confidence. Hope is determination. Hope is courage. And faith is the ultimate expression of hope. Belief fortifies the heart.", attr:"— Daisaku Ikeda, Headquarters Leaders Meeting, 1996"},
+      // Hope
+      {text:"No matter how long the cold, bleak days of winter may continue, winter always turns to spring.", attr:"— Daisaku Ikeda, Discussions on Health"},
+      // Power of the Heart
+      {text:"People whose hearts are illuminated by the light of courage are able to defeat the darkness of suffering. The deeper the darkness, the brighter the sunrise.", attr:"— Daisaku Ikeda, The New Human Revolution, Vol. 23"},
+      // Power of the Heart
+      {text:"Whatever your circumstances, whatever your past, the forces that determine your future are nowhere but within your own heart and mind. It is here that the star of your destiny shines.", attr:"— Daisaku Ikeda, The Complete Works of Daisaku Ikeda"},
+      // Prayer
+      {text:"Prayers are neither light dreams nor vague wishes. They should be firm pledges of determination. Prayers made with such strong resolve invite clear results just as magnets attract iron.", attr:"— Daisaku Ikeda, Seikyo Shimbun, 2009"},
     ];
 
     const SUBMIT_MESSAGES = [
       "✨ Beautifully done. Your daimoku has been recorded.",
-      "🪷 The Gohonzon heard that. Every minute counts.",
+      "🪷 Your prayer has joined the collective rhythm.",
       "🔥 That session just moved something. Keep going.",
       "✨ Nam-Myoho-Renge-Kyo. Filed. The universe noted it.",
       "🌟 The district grows stronger with every minute you chant.",
@@ -100,7 +110,7 @@ repaid in every living face.`;
     const initials    = n => n.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
     const fmtDate     = ds => { const [y,m,d]=ds.split("-"); return `${d}/${m}/${y}`; };
     const statusColor = (a, t) => { const r=pct(a,t); return r>=80?"#5BAD8F":r>=50?"#E8B84B":"#E06B75"; };
-    const statusLabel = (a, t) => { const r=pct(a,t); return r>=80?"✅ On Track":r>=50?"⚡ Catching Up":"🔴 Needs Push"; };
+    const statusLabel = (a, t) => { const r=pct(a,t); return r>=80?"🔥 Steady Flames":r>=50?"⚡ Catching Up":"🪷 Still Blooming"; };
 
     // ── API ───────────────────────────────────────────────────────────
     const api = {
@@ -590,7 +600,7 @@ repaid in every living face.`;
       .scard{background:rgba(255,255,255,.04);border:1px solid rgba(232,184,75,.13);border-radius:12px;padding:14px 12px;text-align:center;}
       .sval{font-family:'Cinzel',serif;font-size:22px;font-weight:700;color:#E8B84B;margin-bottom:4px;}
       .slbl{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(237,232,245,.5);}
-      .pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;}
+      .pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:12px;}
       .pc{border-radius:14px;padding:18px 20px;cursor:pointer;
         border:1px solid rgba(232,184,75,.1);background:rgba(255,255,255,.03);
         transition:background .2s,border-color .2s,transform .2s;}
@@ -1156,7 +1166,7 @@ repaid in every living face.`;
                 borderRadius:10,textAlign:"center"}}>
                 <div style={{fontSize:10,letterSpacing:".2em",color:"#5BAD8F",
                   textTransform:"uppercase",marginBottom:7,fontFamily:"'Cinzel',serif"}}>
-                  {"🙏 Chanting For — "+new Date().toLocaleString("en-US",{month:"long"})+" Zadankai"}
+                  {"🙏 Chanting For — "+new Date(viewYear, viewMonth).toLocaleString("en-US",{month:"long"})+" Zadankai"}
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:"6px 12px"}}>
                   {["🌟 25 members","💬 5 experiences","🤝 5 new members","🛡️ Safe gathering",
@@ -1242,7 +1252,7 @@ repaid in every living face.`;
                   <div className="sstrip" key={dashKey}>
                     {(viewMode==="mtd" ? [
                       [totalMins.toLocaleString(),"Total Mins Chanted"],
-                      [pct(totalMins,groupMtdTarget)+"%","Group Achievement",statusColor(totalMins,groupMtdTarget)],
+                      [pct(totalMins,groupMtdTarget)+"%","Collective Progress",statusColor(totalMins,groupMtdTarget)],
                       [onTrack,"On Track (≥80%)","#5BAD8F"],
                       [elapsed,"Days Since "+campStart.toLocaleDateString("en-GB",{day:"numeric",month:"short"})],
                       [weightedAvgPledge+" min","Avg Daily Pledge"],
