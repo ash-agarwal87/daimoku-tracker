@@ -168,19 +168,28 @@ repaid in every living face.`;
     };
 
     // ── Active campaign detector ─────────────────────────────────────
-    // Returns {year, month} of the campaign whose startDate is most recent
-    // but still <= today. Falls back to current calendar month.
+    // Priority: most recently set campaign (last in array), regardless of
+    // whether its start date is past or future (within 60 days ahead).
+    // Falls back to most recent past campaign, then current calendar month.
     const getActiveCampaign = (campaigns) => {
       const today = new Date(); today.setHours(0,0,0,0);
-      let best = null, bestDate = null;
-      campaigns.forEach(c => {
-        if (!c.startDate) return;
+      const sixtyDaysAhead = new Date(today); sixtyDaysAhead.setDate(today.getDate()+60);
+
+      // Prefer: last entry where startDate is within 60 days ahead OR in the past
+      const eligible = campaigns.filter(c => {
+        if (!c.startDate) return false;
         const d = new Date(c.startDate + "T00:00:00");
-        if (d <= today) {
-          if (!bestDate || d > bestDate) { bestDate = d; best = c; }
-        }
+        return d <= sixtyDaysAhead;
       });
-      if (best && best.startDate) {
+      if (eligible.length > 0) {
+        // Prefer admin-set dates (day != 1) — take the last one set
+        const adminSet = eligible.filter(c => {
+          const d = new Date(c.startDate + "T00:00:00");
+          return d.getDate() !== 1;
+        });
+        const best = adminSet.length > 0
+          ? adminSet[adminSet.length - 1]
+          : eligible[eligible.length - 1];
         const d = new Date(best.startDate + "T00:00:00");
         return { year: d.getFullYear(), month: d.getMonth() };
       }
@@ -977,15 +986,13 @@ repaid in every living face.`;
           const r = await api.setCampaignDate(campLabel, campDate, adminPin);
           if (!r.ok) throw new Error(r.error||"Failed");
           setCampMsg({msg:"✅ Campaign start date updated: "+campLabel+" → "+campDate, type:"success"});
-          // Refresh campaigns and re-detect active campaign
+          // Immediately navigate to the month that was just saved
+          const savedDate = new Date(campDate + "T00:00:00");
+          setViewYear(savedDate.getFullYear());
+          setViewMonth(savedDate.getMonth());
+          // Refresh campaigns list
           const cd = await api.getCampaignDates();
-          if (cd.ok) {
-            const camps = cd.campaigns||[];
-            setCampaigns(camps);
-            const active = getActiveCampaign(camps);
-            setViewYear(active.year);
-            setViewMonth(active.month);
-          }
+          if (cd.ok) setCampaigns(cd.campaigns||[]);
           setCampDate("");
         } catch(err) {
           if (err.message.includes("PIN")) { setAdminUnlocked(false); setPinError(true); }
