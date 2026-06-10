@@ -176,13 +176,16 @@ repaid in every living face.`;
       const sorted = sortedCampaigns(camps);
       if (!sorted.length) return -1;
       const today = new Date(); today.setHours(0,0,0,0);
+      // Priority 1: campaign with endDate where today is between start and end
       for (let i=0;i<sorted.length;i++) {
         const s=new Date(sorted[i].startDate+"T00:00:00");
         const e=sorted[i].endDate?new Date(sorted[i].endDate+"T00:00:00"):null;
-        if (s<=today&&(!e||today<=e)) return i;
+        if (e && s<=today && today<=e) return i;
       }
-      const past=sorted.filter(c=>new Date(c.startDate+"T00:00:00")<=today);
-      if (past.length) return sorted.indexOf(past[past.length-1]);
+      // Priority 2: most recent campaign by startDate that has started (no endDate or past endDate)
+      const started=sorted.filter(c=>new Date(c.startDate+"T00:00:00")<=today);
+      if (started.length) return sorted.indexOf(started[started.length-1]);
+      // Priority 3: next upcoming campaign
       return 0;
     };
 
@@ -823,7 +826,7 @@ repaid in every living face.`;
       const [newName,        setNewName]        = useState("");
       const [viewYear,       setViewYear]       = useState(now.getFullYear());
       const [viewMonth,      setViewMonth]      = useState(now.getMonth());
-      const [viewMode,       setViewMode]       = useState("mtd");
+      const [viewMode,       setViewMode]       = useState("campaign");
       const [campIdx,        setCampIdx]        = useState(0); // index into sortedCampaigns
       const [expandedPerson, setExpandedPerson] = useState(null);
       const [detailTab,      setDetailTab]      = useState("chart");
@@ -1053,7 +1056,10 @@ repaid in every living face.`;
           const start=new Date(currentCamp.startDate+"T00:00:00"); start.setHours(0,0,0,0);
           const today=new Date(); today.setHours(0,0,0,0);
           const end=currentCamp.endDate?new Date(currentCamp.endDate+"T00:00:00"):null;
-          const cap=(end&&end<today)?end:today;
+          // If no endDate, cap at next campaign's startDate - 1 day, or today
+          const nextCamp=sortedCamps[campIdx+1];
+          const nextStart=nextCamp?new Date(new Date(nextCamp.startDate+"T00:00:00")-86400000):null;
+          const cap=end&&end<today?end:nextStart&&nextStart<today?nextStart:today;
           mine=allMine.filter(e=>{const d=new Date(e.date+"T00:00:00");return d>=start&&d<=cap;});
           elapsed=campaignDaysElapsed(currentCamp);
           target=elapsed*personalTarget;
