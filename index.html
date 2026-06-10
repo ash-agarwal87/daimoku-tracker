@@ -1178,7 +1178,7 @@ repaid in every living face.`;
                 borderRadius:10,textAlign:"center"}}>
                 <div style={{fontSize:10,letterSpacing:".2em",color:"#5BAD8F",
                   textTransform:"uppercase",marginBottom:7,fontFamily:"'Cinzel',serif"}}>
-                  {"🙏 Chanting For — "+new Date(viewYear, viewMonth).toLocaleString("en-US",{month:"long"})+" Zadankai"}
+                  {"🙏 Chanting For — "+(currentCamp?currentCamp.label.split(" ")[0]:new Date(viewYear,viewMonth).toLocaleString("en-US",{month:"long"}))+" Zadankai"}
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:"6px 12px"}}>
                   {["🌟 25 members","💬 5 experiences","🤝 5 new members","🛡️ Safe gathering",
