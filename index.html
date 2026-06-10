@@ -136,9 +136,9 @@ repaid in every living face.`;
         const r = await fetch(`${API_URL}?action=getCampaignDates`, { redirect:"follow" });
         return r.json();
       },
-      async setCampaignDate(label, startDate, pin) {
+      async setCampaignDate(label, startDate, pin, endDate) {
         const r = await fetch(
-          `${API_URL}?action=setCampaignDate&data=${encodeURIComponent(JSON.stringify({label,startDate,pin}))}`,
+          `${API_URL}?action=setCampaignDate&data=${encodeURIComponent(JSON.stringify({label,startDate,pin,endDate}))}`,
           { redirect:"follow" }
         );
         return r.json();
@@ -167,67 +167,54 @@ repaid in every living face.`;
       }
     };
 
-    // ── Active campaign detector ─────────────────────────────────────
-    // Priority: most recently set campaign (last in array), regardless of
-    // whether its start date is past or future (within 60 days ahead).
-    // Falls back to most recent past campaign, then current calendar month.
-    const getActiveCampaign = (campaigns) => {
+    // ── Campaign helpers ─────────────────────────────────────────────
+    const sortedCampaigns = (camps) =>
+      [...camps].filter(c=>c.startDate).sort((a,b)=>
+        new Date(a.startDate+"T00:00:00")-new Date(b.startDate+"T00:00:00"));
+
+    const getActiveCampaignIdx = (camps) => {
+      const sorted = sortedCampaigns(camps);
+      if (!sorted.length) return -1;
       const today = new Date(); today.setHours(0,0,0,0);
-      const sixtyDaysAhead = new Date(today); sixtyDaysAhead.setDate(today.getDate()+60);
-
-      // Prefer: last entry where startDate is within 60 days ahead OR in the past
-      const eligible = campaigns.filter(c => {
-        if (!c.startDate) return false;
-        const d = new Date(c.startDate + "T00:00:00");
-        return d <= sixtyDaysAhead;
-      });
-      if (eligible.length > 0) {
-        // Prefer admin-set dates (day != 1) — take the last one set
-        const adminSet = eligible.filter(c => {
-          const d = new Date(c.startDate + "T00:00:00");
-          return d.getDate() !== 1;
-        });
-        const best = adminSet.length > 0
-          ? adminSet[adminSet.length - 1]
-          : eligible[eligible.length - 1];
-        const d = new Date(best.startDate + "T00:00:00");
-        return { year: d.getFullYear(), month: d.getMonth() };
+      for (let i=0;i<sorted.length;i++) {
+        const s=new Date(sorted[i].startDate+"T00:00:00");
+        const e=sorted[i].endDate?new Date(sorted[i].endDate+"T00:00:00"):null;
+        if (s<=today&&(!e||today<=e)) return i;
       }
-      const n = new Date();
-      return { year: n.getFullYear(), month: n.getMonth() };
+      const past=sorted.filter(c=>new Date(c.startDate+"T00:00:00")<=today);
+      if (past.length) return sorted.indexOf(past[past.length-1]);
+      return 0;
     };
 
-    // ── Campaign start date helper ───────────────────────────────────
-    const getCampaignStart = (campaigns, y, m) => {
-      // Get ALL entries for this month
-      const monthMatches = campaigns.filter(c => {
-        if (!c.startDate) return false;
-        const d = new Date(c.startDate + "T00:00:00");
-        return d.getFullYear() === y && d.getMonth() === m;
-      });
-      if (monthMatches.length === 0) return new Date(y, m, 1);
-      // Prefer admin-set dates (day != 1st) — take last one in array (most recently set)
-      const adminSet = monthMatches.filter(c => {
-        const d = new Date(c.startDate + "T00:00:00");
-        return d.getDate() !== 1;
-      });
-      const best = adminSet.length > 0
-        ? adminSet[adminSet.length - 1]   // last admin-set entry
-        : monthMatches[monthMatches.length - 1]; // last default entry
-      const [sy, sm, sd] = best.startDate.split("-");
-      return new Date(parseInt(sy), parseInt(sm)-1, parseInt(sd));
+    const campaignDaysElapsed = (camp) => {
+      const today=new Date(); today.setHours(0,0,0,0);
+      const start=new Date(camp.startDate+"T00:00:00"); start.setHours(0,0,0,0);
+      if (start>today) return 0;
+      const end=camp.endDate?new Date(camp.endDate+"T00:00:00"):null;
+      const cap=(end&&end<today)?end:today;
+      return Math.floor((cap-start)/86400000)+1;
     };
 
-    // Days elapsed since campaign start (capped at today)
+    const campaignTotalDays = (camp) => {
+      if (!camp.endDate) return null;
+      const s=new Date(camp.startDate+"T00:00:00");
+      const e=new Date(camp.endDate+"T00:00:00");
+      return Math.floor((e-s)/86400000)+1;
+    };
+
+    // Legacy wrappers — kept for getCampaignStart calls
+    const getCampaignStart = (camps, y, m) => {
+      const s = sortedCampaigns(camps);
+      const match = s.filter(c=>{const d=new Date(c.startDate+"T00:00:00");return d.getFullYear()===y&&d.getMonth()===m;});
+      if (!match.length) return new Date(y,m,1);
+      return new Date(match[match.length-1].startDate+"T00:00:00");
+    };
     const daysElapsedFromStart = (startDate) => {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const start = new Date(startDate);
-      start.setHours(0,0,0,0);
-      if (start > today) return 0;
-      return Math.floor((today - start) / 86400000) + 1;
+      const today=new Date(); today.setHours(0,0,0,0);
+      const start=new Date(startDate); start.setHours(0,0,0,0);
+      if (start>today) return 0;
+      return Math.floor((today-start)/86400000)+1;
     };
-
     // ═════════════════════════════════════════════════════════════════
     //  Collective Mountain Component
     // ═════════════════════════════════════════════════════════════════
@@ -837,6 +824,7 @@ repaid in every living face.`;
       const [viewYear,       setViewYear]       = useState(now.getFullYear());
       const [viewMonth,      setViewMonth]      = useState(now.getMonth());
       const [viewMode,       setViewMode]       = useState("mtd");
+      const [campIdx,        setCampIdx]        = useState(0); // index into sortedCampaigns
       const [expandedPerson, setExpandedPerson] = useState(null);
       const [detailTab,      setDetailTab]      = useState("chart");
       // Admin / campaign state
@@ -846,6 +834,7 @@ repaid in every living face.`;
       const [campaigns,      setCampaigns]      = useState([]);
       const [campLabel,      setCampLabel]      = useState("");
       const [campDate,       setCampDate]       = useState("");
+      const [campEndDate,    setCampEndDate]    = useState("");
       const [campSaving,     setCampSaving]     = useState(false);
       const [campMsg,        setCampMsg]        = useState(null);
       const [challenges,     setChallenges]     = useState({}); // {name: 30|45|60}
@@ -935,16 +924,18 @@ repaid in every living face.`;
             const sd = await api.getStudy();
             if (sd.ok) setStudyData(sd.entries||[]);
           } catch(e) {}
-          // Load campaign dates — auto-navigate to active campaign
+          // Load campaign dates — auto-set active campaign
           try {
             const cd = await api.getCampaignDates();
             if (cd.ok) {
               const camps = cd.campaigns||[];
               setCampaigns(camps);
-              if (camps.length > 0) {
-                const active = getActiveCampaign(camps);
-                setViewYear(active.year);
-                setViewMonth(active.month);
+              const idx = getActiveCampaignIdx(camps);
+              if (idx >= 0) {
+                const sorted = sortedCampaigns(camps);
+                setCampIdx(idx);
+                const d = new Date(sorted[idx].startDate+"T00:00:00");
+                setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
               }
             }
           } catch(e) {}
@@ -983,16 +974,23 @@ repaid in every living face.`;
         if (!campLabel || !campDate) { setCampMsg({msg:"Select month and date",type:"error"}); return; }
         setCampSaving(true); setCampMsg(null);
         try {
-          const r = await api.setCampaignDate(campLabel, campDate, adminPin);
+          const r = await api.setCampaignDate(campLabel, campDate, adminPin, campEndDate||null);
           if (!r.ok) throw new Error(r.error||"Failed");
           setCampMsg({msg:"✅ Campaign start date updated: "+campLabel+" → "+campDate, type:"success"});
-          // Immediately navigate to the month that was just saved
-          const savedDate = new Date(campDate + "T00:00:00");
-          setViewYear(savedDate.getFullYear());
-          setViewMonth(savedDate.getMonth());
-          // Refresh campaigns list
-          const cd = await api.getCampaignDates();
-          if (cd.ok) setCampaigns(cd.campaigns||[]);
+          // Refresh campaigns and navigate to saved campaign
+          const cd2 = await api.getCampaignDates();
+          if (cd2.ok) {
+            const camps = cd2.campaigns||[];
+            setCampaigns(camps);
+            const sorted = sortedCampaigns(camps);
+            const saved = sorted.findIndex(c => c.label === campLabel);
+            const newIdx = saved >= 0 ? saved : getActiveCampaignIdx(camps);
+            if (newIdx >= 0) {
+              setCampIdx(newIdx);
+              const d = new Date(sorted[newIdx].startDate+"T00:00:00");
+              setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
+            }
+          }
           setCampDate("");
         } catch(err) {
           if (err.message.includes("PIN")) { setAdminUnlocked(false); setPinError(true); }
@@ -1041,43 +1039,44 @@ repaid in every living face.`;
       };
 
       // Dashboard calculations
-      const getPersonStats = useCallback((name,idx)=>{
-        const color=PALETTE[idx%PALETTE.length];
-        let mine,target,elapsed,campaignStart,firstEntryDate=null;
+      const sortedCamps = sortedCampaigns(campaigns);
+      const currentCamp = sortedCamps[campIdx] || null;
 
-        // Personal target — use stored challenge, fall back to latest entry's challenge
+      const getPersonStats = useCallback((name,statsIdx)=>{
+        const color=PALETTE[statsIdx%PALETTE.length];
         const allMine=entries.filter(e=>e.name===name);
         const latestEntry=[...allMine].sort((a,b)=>b.date.localeCompare(a.date))[0];
         const personalTarget=challenges[name]||(latestEntry&&[30,45,60].includes(latestEntry.challenge)?latestEntry.challenge:60);
+        let mine,target,elapsed,campaignStart,firstEntryDate=null;
 
-        if (viewMode==="mtd"){
-          campaignStart=getCampaignStart(campaigns,viewYear,viewMonth);
-          elapsed=daysElapsedFromStart(campaignStart);
-          const todayFilter=new Date(); todayFilter.setHours(0,0,0,0);
-          const endOfViewMonth=new Date(viewYear,viewMonth+1,0); // last day of view month
-          const cutoff=endOfViewMonth<todayFilter?endOfViewMonth:todayFilter;
-          mine=allMine.filter(e=>{
-            const d=new Date(e.date+"T00:00:00");
-            return d>=campaignStart && d<=cutoff;
-          });
+        if (viewMode==="campaign" && currentCamp){
+          const start=new Date(currentCamp.startDate+"T00:00:00"); start.setHours(0,0,0,0);
+          const today=new Date(); today.setHours(0,0,0,0);
+          const end=currentCamp.endDate?new Date(currentCamp.endDate+"T00:00:00"):null;
+          const cap=(end&&end<today)?end:today;
+          mine=allMine.filter(e=>{const d=new Date(e.date+"T00:00:00");return d>=start&&d<=cap;});
+          elapsed=campaignDaysElapsed(currentCamp);
           target=elapsed*personalTarget;
-        } else {
-          // ALL TIME — record of what was done, no pledge target
+          campaignStart=start;
+        } else if (viewMode==="alltime"){
           mine=allMine;
           if (mine.length>0){
-            const sorted=[...mine].sort((a,b)=>a.date.localeCompare(b.date));
-            firstEntryDate=new Date(sorted[0].date+"T00:00:00");
-            firstEntryDate.setHours(0,0,0,0);
+            const s=[...mine].sort((a,b)=>a.date.localeCompare(b.date));
+            firstEntryDate=new Date(s[0].date+"T00:00:00"); firstEntryDate.setHours(0,0,0,0);
             const today=new Date(); today.setHours(0,0,0,0);
             elapsed=Math.floor((today-firstEntryDate)/86400000)+1;
-          } else {
-            elapsed=0;
-          }
-          target=0; // no target for all-time — pledge varies month to month
-          campaignStart=firstEntryDate||new Date(0);
+          } else { elapsed=0; }
+          target=0; campaignStart=firstEntryDate||new Date(0);
+        } else {
+          // fallback MTD
+          const cs=getCampaignStart(campaigns,viewYear,viewMonth);
+          elapsed=daysElapsedFromStart(cs);
+          const today=new Date(); today.setHours(0,0,0,0);
+          mine=allMine.filter(e=>{const d=new Date(e.date+"T00:00:00");return d>=cs&&d<=today;});
+          target=elapsed*personalTarget; campaignStart=cs;
         }
         return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget,campaignStart,firstEntryDate};
-      },[entries,viewYear,viewMonth,viewMode,campaigns,challenges]);
+      },[entries,viewYear,viewMonth,viewMode,campaigns,challenges,campIdx,currentCamp]);
 
       const allPersonData=names.map((n,i)=>getPersonStats(n,i));
       const totalMins=allPersonData.reduce((s,p)=>s+p.total,0);
@@ -1088,14 +1087,13 @@ repaid in every living face.`;
       const weightedAvgPledge=Math.round(allPersonData.reduce((s,p)=>s+p.personalTarget,0)/activeMembersCount);
       // Group MTD target = sum of all individual targets
       const groupMtdTarget=totalTarget;
-      const campStart=getCampaignStart(campaigns,viewYear,viewMonth);
-      const elapsed=viewMode==="mtd"?daysElapsedFromStart(campStart):0; // all-time elapsed is per-person
+      const campStart=currentCamp?new Date(currentCamp.startDate+"T00:00:00"):new Date(viewYear,viewMonth,1);
+      const elapsed=viewMode==="campaign"&&currentCamp?campaignDaysElapsed(currentCamp):0;
       const isCurrent=viewYear===now.getFullYear()&&viewMonth===now.getMonth();
-      // Allow navigation one month ahead so admins can preview upcoming campaigns
-      const nextAllowed = new Date(viewYear, viewMonth+1) <= new Date(now.getFullYear(), now.getMonth()+1);
-
-      const prevMonth=()=>{if(viewMonth===0){setViewYear(y=>y-1);setViewMonth(11);}else setViewMonth(m=>m-1);setExpandedPerson(null);};
-      const nextMonth=()=>{if(!nextAllowed)return;if(viewMonth===11){setViewYear(y=>y+1);setViewMonth(0);}else setViewMonth(m=>m+1);setExpandedPerson(null);};
+      const prevCampaign=()=>{if(campIdx>0){const s=sortedCamps[campIdx-1];setCampIdx(campIdx-1);const d=new Date(s.startDate+"T00:00:00");setViewYear(d.getFullYear());setViewMonth(d.getMonth());setExpandedPerson(null);}};
+      const nextCampaign=()=>{if(campIdx<sortedCamps.length-1){const s=sortedCamps[campIdx+1];setCampIdx(campIdx+1);const d=new Date(s.startDate+"T00:00:00");setViewYear(d.getFullYear());setViewMonth(d.getMonth());setExpandedPerson(null);}};
+      // Legacy aliases
+      const prevMonth=prevCampaign; const nextMonth=nextCampaign;
 
       const getDailyData=useCallback(pEntries=>{
         if (viewMode==="alltime"){
@@ -1247,18 +1245,18 @@ repaid in every living face.`;
                   <div className="dctrl">
                     <div className="mnav">
                       <button className="navbtn" onClick={prevMonth}>‹</button>
-                      <span className="mlbl">{viewMode==="alltime"?"All Time":monthLabel(viewYear,viewMonth)}</span>
-                      <button className="navbtn" onClick={nextMonth} disabled={!nextAllowed||viewMode==="alltime"}>›</button>
+                      <span className="mlbl">{viewMode==="alltime"?"All Time":currentCamp?currentCamp.label:monthLabel(viewYear,viewMonth)}</span>
+                      <button className="navbtn" onClick={nextMonth} disabled={campIdx>=sortedCamps.length-1||viewMode==="alltime"}>›</button>
                     </div>
                     <div className="vtog">
-                      {[["mtd","MTD"],["alltime","All Time"]].map(([k,l])=>(
+                      {[["campaign","Campaign"],["alltime","All Time"]].map(([k,l])=>(
                         <button key={k} className={`vtbtn${viewMode===k?" on":""}`} onClick={()=>{setViewMode(k);setExpandedPerson(null);setDashKey(d=>d+1);}}>{l}</button>
                       ))}
                     </div>
                   </div>
 
                   <div className="sstrip" key={dashKey}>
-                    {(viewMode==="mtd" ? [
+                    {(viewMode==="campaign" ? [
                       [totalMins.toLocaleString(),"Total Mins Chanted"],
                       [pct(totalMins,groupMtdTarget)+"%","Collective Progress",statusColor(totalMins,groupMtdTarget)],
                       [onTrack,"On Track (≥80%)","#5BAD8F"],
@@ -1403,7 +1401,7 @@ repaid in every living face.`;
                     })}
                   </div>
 
-                  {viewMode==="mtd" && (
+                  {viewMode==="campaign" && (
                     <div className="card" style={{marginTop:18}}>
                       <div className="sec">🏔️ Collective Mountain</div>
                       <CollectiveMountain
@@ -1415,7 +1413,7 @@ repaid in every living face.`;
                   )}
 
                   {totalMins>0 && (
-                    <div className="card anim-slide-up anim-delay-6" style={{marginTop:18}}>
+                    <div className="card" style={{marginTop:18}}>
                       <div className="sec">Group Overview — Chanted vs Target</div>
                       <GroupChart data={groupChartData} nameIndex={nameIndex} />
                     </div>
@@ -1688,8 +1686,15 @@ repaid in every living face.`;
                           <label>Campaign Start Date</label>
                           <input className="fi" type="date" value={campDate} onChange={e=>setCampDate(e.target.value)} />
                         </div>
+                        <div className="fl">
+                          <label>Zadankai Date (Campaign End)</label>
+                          <input className="fi" type="date" value={campEndDate||""} onChange={e=>setCampEndDate(e.target.value)} />
+                          <div style={{fontSize:10,color:"rgba(237,232,245,.3)",marginTop:4}}>
+                            Once this date passes, the next campaign becomes active automatically.
+                          </div>
+                        </div>
                         <button className="sbtn" disabled={campSaving} onClick={handleSetCampaignDate} style={{marginTop:4}}>
-                          {campSaving?"Saving…":"Save Campaign Start Date"}
+                          {campSaving?"Saving…":"Save Campaign Dates"}
                         </button>
                         {campMsg&&<div className={`toast ${campMsg.type}`}>{campMsg.msg}</div>}
                       </div>
@@ -1699,7 +1704,7 @@ repaid in every living face.`;
                           <div style={{height:1,background:"rgba(232,184,75,.12)",margin:"24px 0"}}/>
                           <div className="sec">Current Campaign Dates</div>
                           <table className="etbl">
-                            <thead><tr><th>Month</th><th>Start Date</th></tr></thead>
+                            <thead><tr><th>Campaign</th><th>Starts</th><th>Zadankai</th></tr></thead>
                             <tbody>
                               {campaigns.map(c=>(
                                 <tr key={c.label}>
