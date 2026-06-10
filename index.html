@@ -1053,11 +1053,12 @@ repaid in every living face.`;
         if (viewMode==="mtd"){
           campaignStart=getCampaignStart(campaigns,viewYear,viewMonth);
           elapsed=daysElapsedFromStart(campaignStart);
+          const todayFilter=new Date(); todayFilter.setHours(0,0,0,0);
+          const endOfViewMonth=new Date(viewYear,viewMonth+1,0); // last day of view month
+          const cutoff=endOfViewMonth<todayFilter?endOfViewMonth:todayFilter;
           mine=allMine.filter(e=>{
             const d=new Date(e.date+"T00:00:00");
-            const today=new Date(); today.setHours(0,0,0,0);
-            return d>=campaignStart && d<=today &&
-              (d.getFullYear()===viewYear && d.getMonth()===viewMonth);
+            return d>=campaignStart && d<=cutoff;
           });
           target=elapsed*personalTarget;
         } else {
