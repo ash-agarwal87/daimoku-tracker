@@ -205,6 +205,44 @@ repaid in every living face.`;
       return Math.floor((e-s)/86400000)+1;
     };
 
+    // ── Streak calculator ──────────────────────────────────────────
+    // Counts consecutive days (ending today or yesterday) with >=1 entry.
+    // A day is "logged" if any minutes were chanted, regardless of target.
+    // Streak is "paused" (not broken) if today hasn't been logged yet —
+    // it still counts through yesterday.
+    const calcStreak = (allEntries) => {
+      if (!allEntries || allEntries.length === 0) return { current: 0, best: 0, status: "none" };
+      const loggedDates = new Set(allEntries.map(e => e.date));
+      const sortedDates = [...loggedDates].sort(); // ascending yyyy-mm-dd strings sort correctly
+
+      // Best streak — scan all logged dates for longest consecutive run
+      let best = 1, run = 1;
+      for (let i = 1; i < sortedDates.length; i++) {
+        const prev = new Date(sortedDates[i-1]+"T00:00:00");
+        const cur  = new Date(sortedDates[i]+"T00:00:00");
+        const diff = Math.round((cur-prev)/86400000);
+        if (diff === 1) { run++; } else { run = 1; }
+        if (run > best) best = run;
+      }
+
+      // Current streak — count backward from today (or yesterday if today not logged)
+      const today = new Date(); today.setHours(0,0,0,0);
+      const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      let cursor = new Date(today);
+      let status = "active"; // active = today logged, paused = today not yet logged but yesterday was
+      if (!loggedDates.has(fmt(cursor))) {
+        cursor.setDate(cursor.getDate()-1); // check yesterday instead
+        status = loggedDates.has(fmt(cursor)) ? "paused" : "none";
+      }
+      let current = 0;
+      while (loggedDates.has(fmt(cursor))) {
+        current++;
+        cursor.setDate(cursor.getDate()-1);
+      }
+      if (current === 0) status = "none";
+      return { current, best: Math.max(best, current), status };
+    };
+
     // Legacy wrappers — kept for getCampaignStart calls
     const getCampaignStart = (camps, y, m) => {
       const s = sortedCampaigns(camps);
@@ -1081,7 +1119,8 @@ repaid in every living face.`;
           mine=allMine.filter(e=>{const d=new Date(e.date+"T00:00:00");return d>=cs&&d<=today;});
           target=elapsed*personalTarget; campaignStart=cs;
         }
-        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget,campaignStart,firstEntryDate};
+        const streak = calcStreak(allMine);
+        return {name,color,total:mine.reduce((s,e)=>s+e.count,0),target,elapsed,entries:mine,personalTarget,campaignStart,firstEntryDate,streak};
       },[entries,viewYear,viewMonth,viewMode,campaigns,challenges,campIdx,currentCamp]);
 
       const allPersonData=names.map((n,i)=>getPersonStats(n,i));
@@ -1315,9 +1354,18 @@ repaid in every living face.`;
                           <div className="pctop">
                             <div className="av" style={{background:p.color}}>{initials(p.name)}</div>
                             <div className="pinfo">
-                              <div className="pname">{p.name}</div>
+                              <div className="pname">
+                                {p.name}
+                                {p.streak.current>0 && (
+                                  <span style={{marginLeft:7,fontSize:11,fontWeight:600,
+                                    color:p.streak.status==="paused"?"rgba(232,184,75,.5)":"#E8B84B",
+                                    opacity:p.streak.status==="paused"?0.7:1}}>
+                                    🔥{p.streak.current}
+                                  </span>
+                                )}
+                              </div>
                               <div className="pmins">{p.total.toLocaleString()} / {p.target.toLocaleString()} mins</div>
-                              <div className="pmins">{viewMode==="mtd"?`${elapsed} days × ${p.personalTarget} min target`:p.firstEntryDate?`Since ${p.firstEntryDate.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} · ${p.elapsed} days`:`${[...new Set(p.entries.map(e=>e.date))].length} logged days`}
+                              <div className="pmins">{viewMode==="campaign"?`${elapsed} days × ${p.personalTarget} min target`:p.firstEntryDate?`Since ${p.firstEntryDate.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} · ${p.elapsed} days`:`${[...new Set(p.entries.map(e=>e.date))].length} logged days`}
                                 <span style={{marginLeft:6,fontSize:9,background:p.personalTarget===30?"rgba(94,155,191,.2)":"rgba(232,184,75,.15)",
                                   color:p.personalTarget===30?"#5E9BBF":"#E8B84B",borderRadius:20,padding:"1px 7px",border:`1px solid ${p.personalTarget===30?"rgba(94,155,191,.3)":"rgba(232,184,75,.25)"}`}}>
                                   {p.personalTarget} min challenge
@@ -1362,6 +1410,25 @@ repaid in every living face.`;
 
                           {isExp && (
                             <div className="detail" onClick={e=>e.stopPropagation()}>
+                              {p.streak.current>0 && (
+                                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,
+                                  padding:"10px 14px",borderRadius:10,
+                                  background:p.streak.status==="paused"?"rgba(232,184,75,.06)":"rgba(232,184,75,.1)",
+                                  border:`1px solid ${p.streak.status==="paused"?"rgba(232,184,75,.18)":"rgba(232,184,75,.28)"}`}}>
+                                  <span style={{fontSize:18}}>🔥</span>
+                                  <div style={{flex:1}}>
+                                    <div style={{fontSize:13,fontWeight:600,color:"#E8B84B"}}>
+                                      {p.streak.current} day streak
+                                      {p.streak.status==="paused" && <span style={{fontWeight:400,color:"rgba(237,232,245,.4)"}}> · paused, log today to continue</span>}
+                                    </div>
+                                    {p.streak.best>p.streak.current && (
+                                      <div style={{fontSize:10,color:"rgba(237,232,245,.35)",marginTop:2}}>
+                                        Personal best: {p.streak.best} days
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                               <div className="dtabs">
                                 {[["chart","📈 Daily Chart"],["log","📋 Entry Log"]].map(([k,l])=>(
                                   <button key={k} className={`dtab${detailTab===k?" on":""}`} onClick={()=>setDetailTab(k)}>{l}</button>
@@ -1432,7 +1499,7 @@ repaid in every living face.`;
                 <div className="card">
                   <div className="sec">🙏 Four Debts of Gratitude</div>
                   <div style={{fontSize:12,color:"rgba(237,232,245,.4)",fontStyle:"italic",marginBottom:18,lineHeight:1.7}}>
-                    From this month's <em>Value Creation</em>. Tap each to reflect. Let gratitude be the starting point — not the conclusion.
+                    Tap each to reflect. Let gratitude be the starting point — not the conclusion.
                   </div>
 
                   <div className="gr-dq">
