@@ -61,6 +61,44 @@
       {text:"Prayers are neither light dreams nor vague wishes. They should be firm pledges of determination. Prayers made with such strong resolve invite clear results just as magnets attract iron.", attr:"— Daisaku Ikeda, Seikyo Shimbun, 2009"},
     ];
 
+    const MOOD_STATES = [
+      {val:0, icon:"🌑", label:"Depleted"},
+      {val:1, icon:"🌒", label:"Heavy"},
+      {val:2, icon:"🌓", label:"Neutral"},
+      {val:3, icon:"🌔", label:"Light"},
+      {val:4, icon:"🌕", label:"Vibrant"},
+    ];
+
+    // Subtle mood delta messages — delta = afterMood - beforeMood
+    const MOOD_MESSAGES = {
+      big_up:   ["Something moved. The universe felt that. 🪷",
+                 "The light went deeper. It always does. 🔥",
+                 "That shift is real. Remember this feeling. 🌕"],
+      small_up: ["A quiet brightening. That's enough. 🪷",
+                 "One step lighter. The practice is working. 🌔",
+                 "Steady upward. Trust the rhythm. ✨"],
+      same:     ["Steady. Sometimes the practice holds us still so we can find our ground. 🪷",
+                 "The effort itself is the victory today. 🔥",
+                 "Even stillness is movement in the Mystic Law. ✨"],
+      small_dn: ["Some sessions release what needed releasing. The practice knows. 🪷",
+                 "Not every session lifts — some sessions clear. Trust the process. 🌿",
+                 "The Gohonzon received all of it. 🪷"],
+      big_dn:   ["You showed up. In Buddhism, that is everything. 🪷",
+                 "Some of the deepest practice happens in the heaviest moments. Keep going. 🔥",
+                 "The fact that you chanted through this is the proof. 🌿"],
+    };
+
+    const getMoodMessage = (before, after) => {
+      if (before === null || after === null) return null;
+      const delta = after - before;
+      const rnd = (arr) => arr[Math.floor(Math.random()*arr.length)];
+      if (delta >= 2)  return rnd(MOOD_MESSAGES.big_up);
+      if (delta === 1) return rnd(MOOD_MESSAGES.small_up);
+      if (delta === 0) return rnd(MOOD_MESSAGES.same);
+      if (delta === -1)return rnd(MOOD_MESSAGES.small_dn);
+      return rnd(MOOD_MESSAGES.big_dn);
+    };
+
     const SUBMIT_MESSAGES = [
       "✨ Beautifully done. Your daimoku has been recorded.",
       "🪷 Your prayer has joined the collective rhythm.",
@@ -710,6 +748,24 @@ repaid in every living face.`;
         text-transform:uppercase;text-align:right;max-width:160px;line-height:1.4;}
       .camp-marker{transition:all .8s cubic-bezier(.4,0,.2,1);}
 
+      /* ── MOOD SELECTOR ── */
+      .mood-row{display:flex;gap:8px;justify-content:center;margin-top:4px;}
+      .mood-btn{flex:1;padding:8px 4px;border-radius:10px;border:1px solid rgba(255,255,255,.07);
+        background:rgba(255,255,255,.03);cursor:pointer;transition:all .18s;
+        display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Raleway',sans-serif;}
+      .mood-btn:hover{border-color:rgba(232,184,75,.3);background:rgba(232,184,75,.06);}
+      .mood-btn.sel{border-color:rgba(232,184,75,.55);background:rgba(232,184,75,.13);}
+      .mood-icon{font-size:18px;line-height:1;}
+      .mood-lbl{font-size:8px;letter-spacing:.08em;text-transform:uppercase;
+        color:rgba(237,232,245,.35);}
+      .mood-btn.sel .mood-lbl{color:rgba(232,184,75,.7);}
+      .mood-section{margin-top:4px;padding:14px;background:rgba(255,255,255,.02);
+        border:1px solid rgba(255,255,255,.06);border-radius:12px;}
+      .mood-section-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+        color:rgba(232,184,75,.5);margin-bottom:10px;display:block;font-weight:600;}
+      .mood-hint{font-size:10px;color:rgba(237,232,245,.25);text-align:center;
+        margin-top:10px;font-style:italic;line-height:1.5;}
+
       /* ── STUDY TAB ── */
       .study-card{border-radius:18px;padding:28px;margin-bottom:16px;}
       .study-month-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;
@@ -855,7 +911,7 @@ repaid in every living face.`;
       const [entries,        setEntries]        = useState([]);
       const [lastUpdated,    setLastUpdated]    = useState(null);
       const [tab,            setTab]            = useState("track");
-      const [form,           setForm]           = useState({name:"",date:todayStr(),count:""});
+      const [form,           setForm]           = useState({name:"",date:todayStr(),count:"",beforeMood:null,afterMood:null});
       const [errors,         setErrors]         = useState({});
       const [toast,          setToast]          = useState(null);
       const [submitting,     setSubmitting]     = useState(false);
@@ -1055,12 +1111,13 @@ repaid in every living face.`;
         setSubmitting(true);
         try {
           const personChallenge=challenges[form.name]||60;
-          const r=await api.addEntry({name:form.name,date:form.date,count:parseInt(form.count),challenge:personChallenge});
+          const r=await api.addEntry({name:form.name,date:form.date,count:parseInt(form.count),challenge:personChallenge,beforeMood:form.beforeMood,afterMood:form.afterMood});
           if (!r.ok) throw new Error(r.error||"Save failed");
           setEntries(prev=>[...prev,{id:r.id||Date.now(),name:form.name,date:form.date,count:parseInt(form.count),challenge:personChallenge}]);
-          setForm({name:"",date:todayStr(),count:""});
+          setForm({name:"",date:todayStr(),count:"",beforeMood:null,afterMood:null});
           setErrors({});
-          showToast(SUBMIT_MESSAGES[Math.floor(Math.random()*SUBMIT_MESSAGES.length)]);
+          const moodMsg = getMoodMessage(form.beforeMood, form.afterMood);
+          showToast(moodMsg || SUBMIT_MESSAGES[Math.floor(Math.random()*SUBMIT_MESSAGES.length)]);
           // Burst confetti if person just hit 100%
           setTimeout(()=>{
             const p = getPersonStats(form.name, names.indexOf(form.name));
@@ -1276,6 +1333,36 @@ repaid in every living face.`;
                         onKeyDown={e=>e.key==="Enter"&&!submitting&&handleSubmit()} />
                       {errors.count&&<div className="err">⚠ {errors.count}</div>}
                     </div>
+                    <div className="mood-section">
+                      <span className="mood-section-label">How are you feeling? (optional)</span>
+                      <div style={{fontSize:10,color:"rgba(237,232,245,.3)",marginBottom:12,lineHeight:1.6}}>
+                        Note your life condition before you begin chanting. Log both when you're done.
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                        {[["Before","beforeMood"],["After","afterMood"]].map(([lbl,key])=>(
+                          <div key={key}>
+                            <div style={{fontSize:10,color:"rgba(237,232,245,.4)",
+                              letterSpacing:".12em",textTransform:"uppercase",marginBottom:7}}>
+                              {lbl}
+                            </div>
+                            <div className="mood-row">
+                              {MOOD_STATES.map(m=>(
+                                <button key={m.val} disabled={submitting}
+                                  className={"mood-btn"+(form[key]===m.val?" sel":"")}
+                                  onClick={()=>setForm(f=>({...f,[key]:f[key]===m.val?null:m.val}))}>
+                                  <span className="mood-icon">{m.icon}</span>
+                                  <span className="mood-lbl">{m.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mood-hint">
+                        Tap to select · tap again to deselect · both fields optional
+                      </div>
+                    </div>
+
                     <button className="sbtn" disabled={submitting} onClick={handleSubmit}>
                       {submitting?"Saving… 🪷":"Submit Daimoku 🪷"}
                     </button>
