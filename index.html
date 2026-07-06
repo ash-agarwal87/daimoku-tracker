@@ -942,7 +942,7 @@ repaid in every living face.`;
       // Admin study form
       const [studyForm,      setStudyForm]      = useState({
         month:"", accent:"gold", title:"", intro:"",
-        bullets:"", quote:"", quoteAuthor:"— Daisaku Ikeda", reflection:""
+        bullets:"", quote:"", quoteAuthor:"— Daisaku Ikeda", reflection:"", source:""
       });
       const [studySaving,    setStudySaving]    = useState(false);
       const [studyMsg,       setStudyMsg]       = useState(null);
@@ -1703,6 +1703,13 @@ repaid in every living face.`;
                         </div>
                       )}
                       {s.reflection && <div className="study-reflection">{s.reflection}</div>}
+                      {s.source && (
+                        <div style={{marginTop:12,fontSize:10,color:"rgba(237,232,245,.3)",
+                          letterSpacing:".12em",textTransform:"uppercase",
+                          borderTop:"1px solid rgba(255,255,255,.06)",paddingTop:10}}>
+                          📖 {s.source}
+                        </div>
+                      )}
                     </div>
                   );
                 };
@@ -1935,6 +1942,12 @@ repaid in every living face.`;
                               <textarea className="study-textarea" style={{minHeight:70}}
                                 placeholder="A question for members to sit with..."
                                 value={studyForm.reflection} onChange={e=>setStudyForm(f=>({...f,reflection:e.target.value}))}/>
+                            </div>
+                            <div className="fl">
+                              <label>Source</label>
+                              <input className="fi" type="text"
+                                placeholder="e.g. Value Creation, May 2026 · Buddhist Concepts"
+                                value={studyForm.source} onChange={e=>setStudyForm(f=>({...f,source:e.target.value}))}/>
                             </div>
                             <button className="sbtn" disabled={studySaving} onClick={async()=>{
                               if (!studyForm.month||!studyForm.title){setStudyMsg({msg:"Month and title required",type:"error"});return;}
