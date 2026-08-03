@@ -39,26 +39,20 @@
 
     // ── Rotating Quotes ─────────────────────────────────────────────
     const DAILY_QUOTES = [
-      // Prayer
-      {text:"Prayer is the courage to persevere. It is the struggle to overcome our own weakness and lack of confidence in ourselves. It is the act of impressing in the very depths of our being the conviction that we can change the situation without fail.", attr:"— Daisaku Ikeda, Seikyo Shimbun"},
-      // Prayer
-      {text:"Prayer is the way to destroy all fear. It is the way to banish sorrow, the way to light a torch of hope. It is the revolution that rewrites the scenario of our destiny.", attr:"— Daisaku Ikeda, Seikyo Shimbun"},
-      // Faith
-      {text:"By nature, people are strong, wise, cheerful and warm. Religious faith is the power that develops these qualities. The purpose of faith is to make people wise.", attr:"— Daisaku Ikeda, The Wisdom of the Lotus Sutra"},
-      // Faith
-      {text:"The struggle to surmount such inner deadlock is what faith is all about. Only through arousing a strong and powerful spirit and resolutely waging a battle against laziness and all forms of weak-spiritedness can we achieve a life of victory.", attr:"— Daisaku Ikeda, SGI Executive Conference, 2002"},
-      // Life Potential
-      {text:"In most cases, our so-called limitations are nothing more than our own decision to limit ourselves. Life's natural tendency is toward the flowering of potential, toward limitless advance — and the key lies in a single word: faith.", attr:"— Daisaku Ikeda, The Wisdom of the Lotus Sutra"},
-      // Hope
-      {text:"Hope is confidence. Hope is determination. Hope is courage. And faith is the ultimate expression of hope. Belief fortifies the heart.", attr:"— Daisaku Ikeda, Headquarters Leaders Meeting, 1996"},
-      // Hope
-      {text:"No matter how long the cold, bleak days of winter may continue, winter always turns to spring.", attr:"— Daisaku Ikeda, Discussions on Health"},
-      // Power of the Heart
-      {text:"People whose hearts are illuminated by the light of courage are able to defeat the darkness of suffering. The deeper the darkness, the brighter the sunrise.", attr:"— Daisaku Ikeda, The New Human Revolution, Vol. 23"},
-      // Power of the Heart
-      {text:"Whatever your circumstances, whatever your past, the forces that determine your future are nowhere but within your own heart and mind. It is here that the star of your destiny shines.", attr:"— Daisaku Ikeda, The Complete Works of Daisaku Ikeda"},
-      // Prayer
-      {text:"Prayers are neither light dreams nor vague wishes. They should be firm pledges of determination. Prayers made with such strong resolve invite clear results just as magnets attract iron.", attr:"— Daisaku Ikeda, Seikyo Shimbun, 2009"},
+      // Dialogue
+      {text:"Dialogue starts from the courageous willingness to know and be known by others. It is the painstaking and persistent effort to remove all obstacles that obscure our common humanity.", attr:"— Daisaku Ikeda, The Complete Works of Daisaku Ikeda, Vol. 55"},
+      {text:"Genuine dialogue, rooted in sincere friendship, has the power to overcome differences in ethnicity, to transcend borders and interests, to bring down the walls of division.", attr:"— Daisaku Ikeda, The New Human Revolution, Vol. 30"},
+      {text:"Passion inspires passion, and sincerity summons forth sincerity. Genuine dialogue is just this sort of profound life-to-life interaction.", attr:"— Daisaku Ikeda, The New Human Revolution, Vol. 20"},
+      {text:"The courage to meet and talk with people is absolutely crucial. Choosing dialogue is itself the triumph of peace and of humanity.", attr:"— Daisaku Ikeda, The Complete Works of Daisaku Ikeda, Vol. 134"},
+      // Practicing for others
+      {text:"It is through enduring pain and sorrow that the earth of our humanity is cultivated. And from this earth the beautiful flower of a heart that desires the happiness of others blossoms.", attr:"— Daisaku Ikeda, Discussions on Youth"},
+      // Mentor & Disciple
+      {text:"Disciples understand the greatness of the mentor only to the extent that they themselves grow.", attr:"— Daisaku Ikeda, The Wisdom of the Lotus Sutra"},
+      {text:"The bond between mentor and disciple empowers us to stay true to the correct path in life until the very end.", attr:"— Daisaku Ikeda, Speech, Nagano, Aug. 23, 2006"},
+      {text:"The relationship between mentor and disciple can be likened to that between needle and thread. The needle leads the way, but in the end it is the thread which remains that has value.", attr:"— Daisaku Ikeda, The New Human Revolution, Vol. 9"},
+      // Many in body, one in mind
+      {text:"What is the most important requirement for advancing in the unity of 'many in body, one in mind'? It is for each of us to make the oneness of mentor and disciple the center of our lives.", attr:"— Daisaku Ikeda, The Wisdom for Creating Happiness and Peace, Part 3, Chapter 27"},
+      {text:"Buddhism teaches that when we change the 'single element of mind' — our fundamental way of thinking — we transform ourselves and our environment changes.", attr:"— Daisaku Ikeda, The Writings of Nichiren Daishonin and the Mentor-Disciple Relationship"},
     ];
 
     const MOOD_STATES = [
@@ -911,7 +905,7 @@ repaid in every living face.`;
       const [entries,        setEntries]        = useState([]);
       const [lastUpdated,    setLastUpdated]    = useState(null);
       const [tab,            setTab]            = useState("track");
-      const [form,           setForm]           = useState({name:"",date:todayStr(),count:"",beforeMood:null,afterMood:null});
+      const [form,           setForm]           = useState({name:"",date:todayStr(),count:"",chantingFor:"",beforeMood:null,afterMood:null});
       const [errors,         setErrors]         = useState({});
       const [toast,          setToast]          = useState(null);
       const [submitting,     setSubmitting]     = useState(false);
@@ -1110,11 +1104,11 @@ repaid in every living face.`;
         if (Object.keys(e).length){setErrors(e);return;}
         setSubmitting(true);
         try {
-          const personChallenge=challenges[form.name]||60;
-          const r=await api.addEntry({name:form.name,date:form.date,count:parseInt(form.count),challenge:personChallenge,beforeMood:form.beforeMood,afterMood:form.afterMood});
+          const personChallenge=challenges[form.name]||65;
+          const r=await api.addEntry({name:form.name,date:form.date,count:parseInt(form.count),challenge:personChallenge,chantingFor:form.chantingFor||"",beforeMood:form.beforeMood,afterMood:form.afterMood});
           if (!r.ok) throw new Error(r.error||"Save failed");
           setEntries(prev=>[...prev,{id:r.id||Date.now(),name:form.name,date:form.date,count:parseInt(form.count),challenge:personChallenge}]);
-          setForm({name:"",date:todayStr(),count:"",beforeMood:null,afterMood:null});
+          setForm({name:"",date:todayStr(),count:"",chantingFor:"",beforeMood:null,afterMood:null});
           setErrors({});
           const moodMsg = getMoodMessage(form.beforeMood, form.afterMood);
           showToast(moodMsg || SUBMIT_MESSAGES[Math.floor(Math.random()*SUBMIT_MESSAGES.length)]);
@@ -1144,7 +1138,7 @@ repaid in every living face.`;
         const color=PALETTE[statsIdx%PALETTE.length];
         const allMine=entries.filter(e=>e.name===name);
         const latestEntry=[...allMine].sort((a,b)=>b.date.localeCompare(a.date))[0];
-        const personalTarget=challenges[name]||(latestEntry&&[30,45,60].includes(latestEntry.challenge)?latestEntry.challenge:60);
+        const personalTarget=challenges[name]||(latestEntry&&[20,35,50,65].includes(latestEntry.challenge)?latestEntry.challenge:65);
         let mine,target,elapsed,campaignStart,firstEntryDate=null;
 
         if (viewMode==="campaign" && currentCamp){
@@ -1288,7 +1282,7 @@ repaid in every living face.`;
                   ))}
                 </div>
                 <div style={{marginTop:8,fontSize:10,color:"rgba(91,173,143,.6)",fontStyle:"italic"}}>
-                  60 · 45 · 30 mins — every minute counts. 🔥
+                  65 · 50 · 35 · 20 mins — every minute counts. 🔥
                 </div>
               </div>
             </div>
@@ -1333,6 +1327,19 @@ repaid in every living face.`;
                         onKeyDown={e=>e.key==="Enter"&&!submitting&&handleSubmit()} />
                       {errors.count&&<div className="err">⚠ {errors.count}</div>}
                     </div>
+                    <div className="fl">
+                      <label style={{display:"flex",alignItems:"center",gap:6}}>
+                        Who are you chanting for?
+                        <span style={{fontSize:9,letterSpacing:".12em",color:"rgba(237,232,245,.3)",
+                          textTransform:"uppercase",fontWeight:400}}> optional</span>
+                      </label>
+                      <input className="fi" type="text"
+                        placeholder="A person, a situation, a prayer…"
+                        value={form.chantingFor}
+                        disabled={submitting}
+                        onChange={e=>setForm(f=>({...f,chantingFor:e.target.value}))}/>
+                    </div>
+
                     <div className="mood-section">
                       <span className="mood-section-label">How are you feeling? (optional)</span>
                       <div style={{fontSize:10,color:"rgba(237,232,245,.3)",marginBottom:12,lineHeight:1.6}}>
@@ -1453,8 +1460,8 @@ repaid in every living face.`;
                               </div>
                               <div className="pmins">{p.total.toLocaleString()} / {p.target.toLocaleString()} mins</div>
                               <div className="pmins">{viewMode==="campaign"?`${elapsed} days × ${p.personalTarget} min target`:p.firstEntryDate?`Since ${p.firstEntryDate.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} · ${p.elapsed} days`:`${[...new Set(p.entries.map(e=>e.date))].length} logged days`}
-                                <span style={{marginLeft:6,fontSize:9,background:p.personalTarget===30?"rgba(94,155,191,.2)":"rgba(232,184,75,.15)",
-                                  color:p.personalTarget===30?"#5E9BBF":"#E8B84B",borderRadius:20,padding:"1px 7px",border:`1px solid ${p.personalTarget===30?"rgba(94,155,191,.3)":"rgba(232,184,75,.25)"}`}}>
+                                <span style={{marginLeft:6,fontSize:9,background:p.personalTarget<=35?"rgba(94,155,191,.2)":"rgba(232,184,75,.15)",
+                                  color:p.personalTarget<=35?"#5E9BBF":"#E8B84B",borderRadius:20,padding:"1px 7px",border:`1px solid ${p.personalTarget<=35?"rgba(94,155,191,.3)":"rgba(232,184,75,.25)"}`}}>
                                   {p.personalTarget} min challenge
                                 </span>
                               </div>
@@ -1772,7 +1779,7 @@ repaid in every living face.`;
                         </div>
                         <div style={{flex:1,fontSize:13,fontWeight:500}}>{n}</div>
                         <div style={{display:"flex",gap:6}}>
-                          {[60,45,30].map(c=>(
+                          {[65,50,35,20].map(c=>(
                             <button key={c}
                               onClick={async()=>{
                                 setChallenges(prev=>({...prev,[n]:c}));
